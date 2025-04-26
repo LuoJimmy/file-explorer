@@ -40,6 +40,35 @@
         />
       </div>
       
+      <!-- 文件操作菜单 -->
+      <div class="file-actions">
+        <div v-if="fileStore.hasSelection" class="selection-actions">
+          <button @click="renameSelected" title="重命名">
+            重命名
+          </button>
+          <button @click="deleteSelected" title="删除">
+            删除
+          </button>
+          <button @click="fileStore.copyToClipboard()" title="复制">
+            复制
+          </button>
+          <button @click="fileStore.cutToClipboard()" title="剪切">
+            剪切
+          </button>
+          <button @click="openCreateLinkDialog" title="创建链接">
+            创建链接
+          </button>
+        </div>
+        
+        <button 
+          v-if="fileStore.hasClipboard" 
+          @click="fileStore.pasteFromClipboard()"
+          title="粘贴"
+        >
+          粘贴
+        </button>
+      </div>
+      
       <div class="view-controls">
         <button 
           @click="fileStore.setViewMode('list')" 
@@ -64,34 +93,6 @@
         </button>
       </div>
     </div>
-    
-    <!-- 文件操作菜单 -->
-    <div class="file-operations" v-if="fileStore.hasSelection">
-      <button @click="renameSelected" title="重命名">
-        重命名
-      </button>
-      <button @click="deleteSelected" title="删除">
-        删除
-      </button>
-      <button @click="fileStore.copyToClipboard()" title="复制">
-        复制
-      </button>
-      <button @click="fileStore.cutToClipboard()" title="剪切">
-        剪切
-      </button>
-      <button @click="openCreateLinkDialog" title="创建链接">
-        创建链接
-      </button>
-    </div>
-    
-    <button 
-      v-if="fileStore.hasClipboard" 
-      @click="fileStore.pasteFromClipboard()"
-      class="paste-button"
-      title="粘贴"
-    >
-      粘贴
-    </button>
     
     <!-- 文件列表 -->
     <div :class="['file-list', fileStore.viewMode]">
@@ -1372,9 +1373,23 @@ export default {
   padding: 8px;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .actions, .view-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.file-actions {
+  display: flex;
+  gap: 5px;
+  position: absolute;
+  right: 150px; /* 调整位置确保不遮挡视图控件 */
+  top: 8px;
+}
+
+.selection-actions {
   display: flex;
   gap: 5px;
 }
@@ -1386,6 +1401,7 @@ button {
   padding: 5px 10px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 button:hover {
@@ -1400,19 +1416,6 @@ button.active {
 
 .icon {
   font-size: 16px;
-}
-
-.file-operations {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.paste-button {
-  margin-bottom: 10px;
-  background-color: var(--secondary-color);
-  color: white;
-  border: none;
 }
 
 .file-list {
