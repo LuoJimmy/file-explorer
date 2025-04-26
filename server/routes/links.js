@@ -134,50 +134,153 @@ router.get('/symlink-target', async (req, res) => {
 // 查找硬链接
 router.get('/find-hardlinks', async (req, res) => {
   try {
-    const filePath = req.query.path;
+    let filePath = req.query.path || '';
+    console.log('Requested path:', filePath);
+    
+    // 如果路径以/开头，去掉开头的/
+    if (filePath.startsWith('/')) {
+      filePath = filePath.substring(1);
+    }
+    
+    console.log('Normalized path:', filePath);
     
     if (!filePath) {
       return res.status(400).json({ error: 'File path is required' });
     }
     
     const fullPath = path.join(BASE_PATH, filePath);
+    console.log('Full path:', fullPath);
+    console.log('BASE_PATH:', BASE_PATH);
     
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied', details: 'Path is outside of base directory' });
     }
     
     // 检查文件是否存在
-    if (!await fs.pathExists(fullPath)) {
-      return res.status(404).json({ error: 'File not found' });
+    const exists = await fs.pathExists(fullPath);
+    if (!exists) {
+      return res.status(404).json({ error: 'File not found', details: `File does not exist: ${fullPath}` });
     }
     
     // 检查是否是文件
     const stats = await fs.stat(fullPath);
+    console.log('File stats:', {
+      isFile: stats.isFile(),
+      size: stats.size,
+      ino: stats.ino,
+      nlink: stats.nlink
+    });
+    
     if (!stats.isFile()) {
-      return res.status(400).json({ error: 'Not a file' });
+      return res.status(400).json({ error: 'Not a file', details: 'The path points to a directory or special file' });
     }
     
-    // 使用find命令查找相同inode的硬链接
-    const { stdout } = await execPromise(`find ${BASE_PATH} -samefile "${fullPath}" -not -path "${fullPath}"`);
-    
-    // 处理结果
-    const hardlinks = stdout.trim().split('\n')
-      .filter(link => link) // 过滤空行
-      .map(link => ({
-        path: link.replace(BASE_PATH, ''),
-        absolutePath: link
-      }));
-    
-    res.json({
-      sourcePath: filePath,
-      inode: stats.ino,
-      linkCount: stats.nlink,
-      hardlinks
-    });
+    // 检查同一目录下是否有硬链接
+    try {
+      // 获取当前文件所在目录
+      const dirPath = path.dirname(fullPath);
+      const fileName = path.basename(fullPath);
+      console.log(`检查目录 ${dirPath} 中的硬链接`);
+      
+      // 读取目录内容
+      const files = await fs.readdir(dirPath);
+      const hardlinks = [];
+      
+      // 检查每个文件
+      for (const file of files) {
+        if (file === fileName) continue; // 跳过原文件
+        
+        const filePath = path.join(dirPath, file);
+        try {
+          const fileStats = await fs.stat(filePath);
+          
+          // 如果inode相同，则是硬链接
+          if (fileStats.isFile() && fileStats.ino === stats.ino) {
+            hardlinks.push({
+              path: filePath.replace(BASE_PATH, '').replace(/^\//g, ''),
+              absolutePath: filePath
+            });
+          }
+        } catch (err) {
+          console.log(`跳过文件 ${filePath}: ${err.message}`);
+        }
+      }
+      
+      // 检查其他目录，如果有其他硬链接存在
+      if (stats.nlink > hardlinks.length + 1) { // +1 是原文件自己
+        console.log(`当前目录找到 ${hardlinks.length} 个硬链接，但总链接数为 ${stats.nlink}，尝试搜索其他目录...`);
+        
+        // 递归查找函数
+        const findAllHardLinks = async (directory) => {
+          const result = [];
+          try {
+            const items = await fs.readdir(directory);
+            
+            for (const item of items) {
+              const itemPath = path.join(directory, item);
+              
+              try {
+                const itemStat = await fs.stat(itemPath);
+                
+                if (itemStat.isDirectory()) {
+                  // 如果是目录并且不是当前文件所在目录，则递归查找
+                  if (itemPath !== dirPath) {
+                    const subResults = await findAllHardLinks(itemPath);
+                    result.push(...subResults);
+                  }
+                } else if (itemStat.isFile() && itemPath !== fullPath && itemStat.ino === stats.ino) {
+                  // 找到硬链接
+                  result.push({
+                    path: itemPath.replace(BASE_PATH, '').replace(/^\//g, ''),
+                    absolutePath: itemPath
+                  });
+                }
+              } catch (err) {
+                console.log(`跳过项目 ${itemPath}: ${err.message}`);
+              }
+            }
+          } catch (err) {
+            console.log(`跳过目录 ${directory}: ${err.message}`);
+          }
+          
+          return result;
+        };
+        
+        // 从根目录开始搜索
+        const additionalLinks = await findAllHardLinks(BASE_PATH);
+        console.log(`在其他目录找到 ${additionalLinks.length} 个硬链接`);
+        
+        // 合并结果，避免重复
+        const allPaths = new Set(hardlinks.map(link => link.absolutePath));
+        for (const link of additionalLinks) {
+          if (!allPaths.has(link.absolutePath)) {
+            hardlinks.push(link);
+            allPaths.add(link.absolutePath);
+          }
+        }
+      }
+      
+      // 返回结果
+      res.json({
+        sourcePath: filePath,
+        inode: stats.ino,
+        linkCount: stats.nlink,
+        hardlinks
+      });
+    } catch (error) {
+      console.error('Error finding hardlinks:', error);
+      res.status(500).json({ 
+        error: 'Failed to find hard links',
+        details: error.message
+      });
+    }
   } catch (error) {
     console.error('Error finding hard links:', error);
-    res.status(500).json({ error: 'Failed to find hard links' });
+    res.status(500).json({ 
+      error: 'Failed to find hard links',
+      details: error.message
+    });
   }
 });
 
