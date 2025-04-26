@@ -79,7 +79,7 @@
       <button @click="fileStore.cutToClipboard()" title="剪切">
         剪切
       </button>
-      <button @click="showCreateLinkDialog = true" title="创建链接">
+      <button @click="openCreateLinkDialog" title="创建链接">
         创建链接
       </button>
     </div>
@@ -184,7 +184,7 @@
         <div class="menu-item" @click="fileStore.copyToClipboard([contextMenu.item])">复制</div>
         <div class="menu-item" @click="fileStore.cutToClipboard([contextMenu.item])">剪切</div>
         <div class="menu-item" @click="showFileProperties(contextMenu.item)">属性</div>
-        <div class="menu-item" @click="showCreateLinkDialog = true">创建链接</div>
+        <div class="menu-item" @click="openCreateLinkDialog">创建链接</div>
         <div v-if="contextMenu.item.isFile" class="menu-item" @click="findHardLinks(contextMenu.item)">查找硬链接</div>
         <div v-if="contextMenu.item.isSymbolicLink" class="menu-item" @click="getSymLinkTarget(contextMenu.item)">查看链接目标</div>
       </div>
@@ -622,6 +622,26 @@ export default {
           console.error('Failed to delete:', error);
         }
       }
+    };
+    
+    // 打开创建链接对话框
+    const openCreateLinkDialog = () => {
+      if (!fileStore.selectedFiles.length) return;
+      
+      // 设置默认链接名称为选中文件的名称
+      const selectedFile = fileStore.selectedFiles[0];
+      linkName.value = selectedFile.name;
+      
+      // 显示对话框
+      showCreateLinkDialog.value = true;
+      
+      // 下一个渲染周期后聚焦输入框并选中文本
+      nextTick(() => {
+        if (linkNameInput.value) {
+          linkNameInput.value.focus();
+          linkNameInput.value.select();
+        }
+      });
     };
     
     // 创建链接
@@ -1101,6 +1121,7 @@ export default {
       renameSelected,
       confirmRename,
       deleteSelected,
+      openCreateLinkDialog,
       createLink,
       showFileProperties,
       handleFileAction,
