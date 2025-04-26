@@ -885,8 +885,12 @@ button.active {
 .file-list.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 15px;
-  padding: 15px;
+  column-gap: 15px;
+  row-gap: 15px;
+  padding: 15px 15px 5px 15px;
+  align-content: start;
+  height: auto;
+  min-height: 200px;
 }
 
 .file-list-header {
@@ -909,12 +913,16 @@ button.active {
 }
 
 .file-list.grid .file-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  position: relative;
   text-align: center;
-  padding: 10px;
+  padding: 5px;
   border-radius: 4px;
+  max-width: 150px;
+  margin: 0 auto;
+  width: 100%;
+  height: 90px;
+  overflow: visible;
+  margin-bottom: 0;
 }
 
 .file-icon {
@@ -924,8 +932,8 @@ button.active {
 
 .file-list.grid .file-icon {
   font-size: 36px;
-  margin-right: 0;
-  margin-bottom: 5px;
+  display: block;
+  margin: 0 auto 8px;
 }
 
 .file-name {
@@ -936,12 +944,28 @@ button.active {
   max-width: 100%;
 }
 
+.file-list.grid .file-name {
+  display: block;
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
 .file-item:hover {
   background-color: #f5f7fa;
 }
 
 .file-item.selected {
   background-color: rgba(66, 185, 131, 0.1);
+  box-shadow: 0 0 0 2px rgba(66, 185, 131, 0.3);
+}
+
+.file-list.grid .file-item.selected {
+  background-color: rgba(66, 185, 131, 0.1);
+  box-shadow: 0 0 0 2px rgba(66, 185, 131, 0.3);
+  border-radius: 8px;
 }
 
 .column {
@@ -1091,6 +1115,10 @@ button.active {
 @media (max-width: 768px) {
   .file-list.grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+  
+  .file-list.grid .file-item {
+    max-width: 100px;
   }
   
   .column.date {
