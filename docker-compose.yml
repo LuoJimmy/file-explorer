@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  linux-file-explorer:
+    build: .
+    container_name: linux-file-explorer
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${HOST_PATH:-/home}:/mnt/explorer
+      - file-explorer-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - BASE_PATH=/mnt/explorer
+    restart: unless-stopped
+
+volumes:
+  file-explorer-data: 
