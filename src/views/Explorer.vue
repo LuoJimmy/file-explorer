@@ -277,6 +277,18 @@
               autofocus
             />
           </div>
+          <div class="form-group">
+            <label>目标目录 (可选)</label>
+            <div class="directory-selector">
+              <input 
+                type="text" 
+                v-model="linkTargetDir" 
+                placeholder="留空表示当前目录"
+                readonly
+              />
+              <button type="button" @click="openDirectoryPicker">浏览...</button>
+            </div>
+          </div>
           <div class="dialog-buttons">
             <button type="button" @click="showCreateLinkDialog = false">取消</button>
             <button type="submit" :disabled="!linkName">创建</button>
@@ -383,6 +395,68 @@
         </div>
       </div>
     </div>
+    
+    <!-- 目录选择对话框 -->
+    <div v-if="showDirectoryPicker" class="dialog-overlay">
+      <div class="dialog directory-picker-dialog">
+        <div class="dialog-header">
+          <h3>选择目标目录</h3>
+          <button class="close-btn" @click="showDirectoryPicker = false">×</button>
+        </div>
+        
+        <div class="directory-browser">
+          <!-- 面包屑导航 -->
+          <div class="breadcrumbs">
+            <span
+              v-for="(crumb, index) in pickerBreadcrumbs"
+              :key="index"
+              class="breadcrumb-item"
+              @click="pickerNavigateTo(crumb.path)"
+            >
+              {{ crumb.name }}
+              <span v-if="index < pickerBreadcrumbs.length - 1" class="separator">/</span>
+            </span>
+          </div>
+          
+          <!-- 目录列表 -->
+          <div class="directory-list">
+            <div v-if="pickerLoading" class="loading-message">
+              加载中...
+            </div>
+            
+            <template v-else>
+              <div 
+                v-for="file in pickerFiles.filter(f => f.isDirectory)" 
+                :key="file.name"
+                class="directory-item"
+                @dblclick="pickerNavigateTo(pickerCurrentPath ? `${pickerCurrentPath}/${file.name}` : file.name)"
+              >
+                <span class="file-icon">📁</span>
+                <span class="dir-name">{{ file.name }}</span>
+              </div>
+              
+              <div v-if="pickerFiles.filter(f => f.isDirectory).length === 0" class="empty-message">
+                此目录中没有子目录
+                <div class="debug-info">
+                  <small>文件总数: {{ pickerFiles.length }}，目录数: {{ pickerFiles.filter(f => f.isDirectory).length }}</small>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        
+        <div class="dialog-footer">
+          <div class="current-path">
+            当前路径: {{ pickerCurrentPath || '/' }}
+          </div>
+          <div class="dialog-buttons">
+            <button type="button" @click="pickerNavigateUp()" :disabled="!pickerCurrentPath">上级目录</button>
+            <button type="button" @click="showDirectoryPicker = false">取消</button>
+            <button type="button" @click="selectLinkTargetDir(pickerCurrentPath)">选择此目录</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -407,6 +481,13 @@ export default {
     const showPropertiesDialog = ref(false);
     const showInfoDialog = ref(false);
     const showHardLinkInfo = ref(false);
+    const showDirectoryPicker = ref(false);
+    
+    // 目录选择器独立状态
+    const pickerCurrentPath = ref('');
+    const pickerFiles = ref([]);
+    const pickerBreadcrumbs = ref([]);
+    const pickerLoading = ref(false);
     
     // 表单数据
     const newFolderName = ref('');
@@ -414,6 +495,7 @@ export default {
     const linkType = ref('symbolic');
     const linkName = ref('');
     const linkSource = ref({});
+    const linkTargetDir = ref('');
     const selectedFile = ref(null);
     const hardLinks = ref([]);
     
@@ -548,6 +630,9 @@ export default {
       
       try {
         const source = fileStore.selectedFiles[0];
+        const targetPath = linkTargetDir.value ? 
+          `${linkTargetDir.value}/${linkName.value}` : 
+          linkName.value;
         
         if (linkType.value === 'hard') {
           // 硬链接只能用于文件
@@ -556,13 +641,14 @@ export default {
             return;
           }
           
-          await fileStore.createHardLink(source, linkName.value);
+          await fileStore.createHardLink(source, targetPath);
         } else {
-          await fileStore.createSymLink(source, linkName.value);
+          await fileStore.createSymLink(source, targetPath);
         }
         
         showCreateLinkDialog.value = false;
         linkName.value = '';
+        linkTargetDir.value = '';
       } catch (error) {
         console.error('Failed to create link:', error);
         alert(`创建链接失败: ${error.message}`);
@@ -894,6 +980,92 @@ export default {
       }
     };
     
+    // 打开目录选择器
+    const openDirectoryPicker = async () => {
+      pickerCurrentPath.value = fileStore.currentPath;
+      await fetchPickerDirectory(pickerCurrentPath.value);
+      showDirectoryPicker.value = true;
+    };
+    
+    // 获取目录选择器的目录内容
+    const fetchPickerDirectory = async (path) => {
+      pickerLoading.value = true;
+      try {
+        // 修改为正确的API路径
+        const response = await axios.get('/api/files/list', { 
+          params: { 
+            path: path,
+            showHidden: fileStore.showHiddenFiles
+          } 
+        });
+        
+        // 确保文件列表存在并且正确处理
+        if (response.data) {
+          pickerFiles.value = response.data;
+        } else {
+          console.error('API返回的数据格式不正确:', response.data);
+          pickerFiles.value = [];
+        }
+        
+        // 构建面包屑
+        pickerBreadcrumbs.value = [];
+        if (path) {
+          const parts = path.split('/');
+          let currentPath = '';
+          
+          // 添加根目录
+          pickerBreadcrumbs.value.push({ name: '根目录', path: '' });
+          
+          // 添加各级目录
+          for (let i = 0; i < parts.length; i++) {
+            if (!parts[i]) continue;
+            
+            currentPath += (currentPath ? '/' : '') + parts[i];
+            pickerBreadcrumbs.value.push({
+              name: parts[i],
+              path: currentPath
+            });
+          }
+        } else {
+          // 只有根目录
+          pickerBreadcrumbs.value.push({ name: '根目录', path: '' });
+        }
+        
+        // 调试输出
+        console.log('目录选择器文件列表:', pickerFiles.value);
+        console.log('目录数量:', pickerFiles.value.filter(f => f.isDirectory).length);
+      } catch (error) {
+        console.error('Failed to fetch directory for picker:', error);
+        console.error('错误详情:', error.response || error);
+        pickerFiles.value = [];
+      } finally {
+        pickerLoading.value = false;
+      }
+    };
+    
+    // 目录选择器导航
+    const pickerNavigateTo = async (path) => {
+      await fetchPickerDirectory(path);
+      pickerCurrentPath.value = path;
+    };
+    
+    // 目录选择器上级导航
+    const pickerNavigateUp = async () => {
+      if (!pickerCurrentPath.value) return;
+      
+      const parts = pickerCurrentPath.value.split('/').filter(Boolean);
+      parts.pop();
+      const parentPath = parts.join('/');
+      
+      await pickerNavigateTo(parentPath);
+    };
+    
+    // 选择目录作为链接目标
+    const selectLinkTargetDir = (path) => {
+      linkTargetDir.value = path;
+      showDirectoryPicker.value = false;
+    };
+    
     return {
       fileStore,
       fileInput,
@@ -906,11 +1078,17 @@ export default {
       showPropertiesDialog,
       showInfoDialog,
       showHardLinkInfo,
+      showDirectoryPicker,
+      pickerCurrentPath,
+      pickerFiles,
+      pickerBreadcrumbs,
+      pickerLoading,
       newFolderName,
       newName,
       linkType,
       linkName,
       linkSource,
+      linkTargetDir,
       selectedFile,
       contextMenu,
       infoDialog,
@@ -937,7 +1115,11 @@ export default {
       getFileType,
       navigateToHardLink,
       deleteHardLink,
-      deleteAllHardLinks
+      deleteAllHardLinks,
+      openDirectoryPicker,
+      pickerNavigateTo,
+      pickerNavigateUp,
+      selectLinkTargetDir
     };
   }
 };
@@ -1245,6 +1427,20 @@ button.active {
 .radio-group {
   display: flex;
   gap: 20px;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+  margin-right: 5px;
 }
 
 .dialog-header {
@@ -1431,5 +1627,128 @@ button.active {
   .column.type {
     display: none;
   }
+}
+
+.directory-selector {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.directory-selector input {
+  flex: 1;
+  cursor: default;
+  background-color: #f9f9f9;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.directory-selector button {
+  height: 36px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: #f5f7fa;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input[type="text"] {
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.directory-picker-dialog {
+  width: 600px;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  height: 450px;
+}
+
+.directory-browser {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.directory-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #fff;
+}
+
+.directory-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.directory-item:hover {
+  background-color: #f5f7fa;
+}
+
+.dir-name {
+  margin-left: 8px;
+}
+
+.dialog-footer {
+  margin-top: auto;
+}
+
+.current-path {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 10px;
+  word-break: break-all;
+  max-height: 40px;
+  overflow-y: auto;
+}
+
+.empty-message {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.loading-message {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.debug-info {
+  margin-top: 10px;
+  font-size: 0.8em;
+  color: #aaa;
 }
 </style> 
