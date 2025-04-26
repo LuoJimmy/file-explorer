@@ -339,6 +339,50 @@
         </div>
       </div>
     </div>
+    
+    <!-- 硬链接信息对话框 -->
+    <div v-if="showHardLinkInfo" class="dialog-overlay" @click.self="showHardLinkInfo = false">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h3>硬链接信息</h3>
+          <button class="close-btn" @click="showHardLinkInfo = false">×</button>
+        </div>
+        <div class="dialog-content">
+          <p><strong>源文件:</strong> {{ selectedFile ? selectedFile.path : '' }}</p>
+          <p><strong>硬链接数量:</strong> {{ hardLinks.length }}</p>
+          
+          <div v-if="hardLinks.length === 0" class="no-links-message">
+            未找到硬链接
+          </div>
+          
+          <div v-else class="hardlink-list">
+            <div v-for="(link, index) in hardLinks" :key="index" class="hardlink-item">
+              <a 
+                class="hardlink-path" 
+                href="#" 
+                @click.prevent="navigateToHardLink(link.fullPath)"
+                :title="link.fullPath"
+              >
+                <i class="material-icons file-icon">insert_link</i>
+                <span class="filename">{{ link.fileName }}</span>
+                <span class="path-suffix">{{ link.dirPath ? '在 ' + link.dirPath : '(根目录)' }}</span>
+              </a>
+              
+              <button class="delete-btn" @click="deleteHardLink(link.fullPath)" title="删除硬链接">
+                <i class="material-icons">delete</i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="delete-all-container" v-if="hardLinks.length > 1">
+            <button class="delete-all-btn" @click="deleteAllHardLinks">
+              <i class="material-icons" style="margin-right: 5px;">delete_sweep</i>
+              删除所有硬链接
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -362,6 +406,7 @@ export default {
     const showCreateLinkDialog = ref(false);
     const showPropertiesDialog = ref(false);
     const showInfoDialog = ref(false);
+    const showHardLinkInfo = ref(false);
     
     // 表单数据
     const newFolderName = ref('');
@@ -370,6 +415,7 @@ export default {
     const linkName = ref('');
     const linkSource = ref({});
     const selectedFile = ref(null);
+    const hardLinks = ref([]);
     
     // 右键菜单
     const contextMenu = ref({
@@ -544,10 +590,28 @@ export default {
     
     // 显示右键菜单
     const showContextMenu = (event, item = null) => {
+      // 计算菜单位置，防止超出视口边界
+      const menuHeight = item ? 320 : 220; // 增加估计的菜单高度
+      const menuWidth = 180; // 估计的菜单宽度
+      const windowHeight = window.innerHeight;
+      const windowWidth = window.innerWidth;
+      const clickX = event.clientX;
+      const clickY = event.clientY;
+      
+      // 如果点击位置加上菜单高度超出窗口高度，则将菜单向上显示
+      const topPosition = (clickY + menuHeight > windowHeight) 
+        ? clickY - menuHeight 
+        : clickY;
+      
+      // 如果点击位置加上菜单宽度超出窗口宽度，则将菜单向左显示
+      const leftPosition = (clickX + menuWidth > windowWidth)
+        ? clickX - menuWidth
+        : clickX;
+      
       contextMenu.value = {
         show: true,
-        top: event.clientY,
-        left: event.clientX,
+        top: topPosition,
+        left: leftPosition,
         item: item
       };
       
@@ -573,37 +637,46 @@ export default {
     // 查找硬链接
     const findHardLinks = async (file) => {
       try {
-        const response = await axios.get('/api/links/find-hardlinks', {
-          params: {
-            path: file.path
-          }
+        fileStore.loading = true;
+        const response = await axios.get(`/api/links/find-hardlinks`, {
+          params: { path: file.path }
         });
         
-        const data = response.data;
+        console.log('收到硬链接数据:', response.data);
         
-        let message = `<div>文件: ${file.name}</div>`;
-        message += `<div>Inode: ${data.inode}</div>`;
-        message += `<div>链接数: ${data.linkCount}</div>`;
+        // 设置源文件和文件路径
+        selectedFile.value = file;
         
-        if (data.hardlinks.length) {
-          message += '<div>硬链接列表:</div><ul>';
-          data.hardlinks.forEach(link => {
-            message += `<li>${link.path}</li>`;
+        // 解析硬链接数据
+        if (response.data && response.data.hardlinks) {
+          const links = response.data.hardlinks.map(link => {
+            // 分割路径为目录和文件名部分
+            const parts = link.path.split('/');
+            const fileName = parts.pop();
+            const dirPath = parts.join('/');
+            
+            return {
+              fullPath: link.path,
+              dirPath: dirPath,
+              fileName: fileName
+            };
           });
-          message += '</ul>';
+          
+          hardLinks.value = links;
         } else {
-          message += '<div>没有找到其他硬链接</div>';
+          // 即使没有硬链接也清空数组
+          hardLinks.value = [];
         }
         
-        infoDialog.value = {
-          title: '硬链接信息',
-          message
-        };
-        
-        showInfoDialog.value = true;
+        // 总是显示对话框，即使没有找到硬链接
+        nextTick(() => {
+          showHardLinkInfo.value = true;
+        });
       } catch (error) {
-        console.error('Failed to find hard links:', error);
-        alert('查找硬链接失败');
+        console.error('Error finding hard links:', error);
+        alert('查找硬链接失败: ' + (error.response?.data?.error || error.message));
+      } finally {
+        fileStore.loading = false;
       }
     };
     
@@ -741,6 +814,86 @@ export default {
       }
     };
     
+    // 导航到硬链接所在目录
+    const navigateToHardLink = (path) => {
+      // 分割路径为目录和文件名部分
+      const parts = path.split('/');
+      const fileName = parts.pop();
+      const dirPath = parts.join('/') || './';
+      
+      // 设置目标选中的文件名
+      fileStore.targetToSelect = fileName;
+      
+      // 关闭对话框
+      showHardLinkInfo.value = false;
+      
+      // 导航到硬链接所在目录并等待导航完成
+      fileStore.fetchDirectory(dirPath).then(() => {
+        // 确保目录加载完成后刷新显示
+        nextTick(() => {
+          // 尝试重新选择目标文件
+          const targetFile = fileStore.files.find(f => f.name === fileName);
+          if (targetFile) {
+            fileStore.selectFile(targetFile);
+            
+            // 确保滚动到选中的文件
+            const element = document.querySelector('.file-item.selected');
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        });
+      });
+    };
+    
+    // 删除硬链接
+    const deleteHardLink = async (path) => {
+      if (confirm(`确定要删除硬链接 "${path}" 吗？`)) {
+        try {
+          await axios.delete('/api/files/', {
+            params: { path: path }
+          });
+          
+          // 移除已删除的硬链接
+          hardLinks.value = hardLinks.value.filter(link => link.fullPath !== path);
+          
+          // 如果当前目录中有这个文件，刷新目录
+          refreshDirectory();
+        } catch (error) {
+          console.error('Failed to delete hardlink:', error);
+          alert('删除硬链接失败');
+        }
+      }
+    };
+    
+    // 删除所有硬链接
+    const deleteAllHardLinks = async () => {
+      if (confirm(`确定要删除所有 ${hardLinks.value.length} 个硬链接吗？`)) {
+        try {
+          // 创建删除所有硬链接的请求数组
+          const deletePromises = hardLinks.value.map(link => 
+            axios.delete('/api/files/', {
+              params: { path: link.fullPath }
+            })
+          );
+          
+          // 等待所有删除操作完成
+          await Promise.all(deletePromises);
+          
+          // 更新界面
+          hardLinks.value = [];
+          
+          // 刷新目录
+          refreshDirectory();
+          
+          alert('所有硬链接已删除');
+        } catch (error) {
+          console.error('Failed to delete all hardlinks:', error);
+          alert('删除硬链接失败');
+        }
+      }
+    };
+    
     return {
       fileStore,
       fileInput,
@@ -752,6 +905,7 @@ export default {
       showCreateLinkDialog,
       showPropertiesDialog,
       showInfoDialog,
+      showHardLinkInfo,
       newFolderName,
       newName,
       linkType,
@@ -760,6 +914,7 @@ export default {
       selectedFile,
       contextMenu,
       infoDialog,
+      hardLinks,
       navigateTo,
       navigateUp,
       refreshDirectory,
@@ -779,7 +934,10 @@ export default {
       formatFileSize,
       formatDate,
       getFileIcon,
-      getFileType
+      getFileType,
+      navigateToHardLink,
+      deleteHardLink,
+      deleteAllHardLinks
     };
   }
 };
@@ -1036,8 +1194,10 @@ button.active {
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   z-index: 1001;
+  padding-top: 10vh; /* 距离顶部的距离，约为视口高度的10% */
+  overflow-y: auto; /* 允许整个遮罩可滚动 */
 }
 
 .dialog {
@@ -1047,6 +1207,10 @@ button.active {
   padding: 20px;
   width: 400px;
   max-width: 90%;
+  max-height: 80vh; /* 最大高度为视口高度的80% */
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 50px; /* 确保底部有足够空间 */
 }
 
 .dialog h3 {
@@ -1083,6 +1247,38 @@ button.active {
   gap: 20px;
 }
 
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  color: var(--primary-color);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  color: #999;
+}
+
+.close-btn:hover {
+  color: #666;
+}
+
+.dialog-content {
+  flex: 1;
+  overflow-y: auto; /* 内容可滚动 */
+  max-height: calc(70vh - 100px); /* 动态计算内容区最大高度 */
+}
+
 .properties-dialog {
   width: 500px;
 }
@@ -1110,6 +1306,113 @@ button.active {
   margin-bottom: 20px;
   max-height: 300px;
   overflow-y: auto;
+}
+
+.hardlink-list {
+  margin-top: 10px;
+}
+
+.hardlink-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  background-color: #f5f9f7;
+  transition: all 0.2s ease;
+  border: 1px solid #e0e8e4;
+}
+
+.hardlink-item:hover {
+  background-color: #e8f4ee;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.hardlink-path {
+  display: flex;
+  align-items: center;
+  color: #333;
+  text-decoration: none;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hardlink-path .file-icon {
+  color: #42b983;
+  margin-right: 8px;
+  font-size: 18px;
+}
+
+.hardlink-path .filename {
+  font-weight: 500;
+  color: #333;
+  margin-right: 6px;
+}
+
+.hardlink-path .path-suffix {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #f56c6c;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.delete-btn:hover {
+  background-color: rgba(245, 108, 108, 0.15);
+  opacity: 1;
+}
+
+.delete-all-container {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.delete-all-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  background-color: #f56c6c;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.2);
+}
+
+.delete-all-btn:hover {
+  background-color: #f78989;
+  box-shadow: 0 2px 6px rgba(245, 108, 108, 0.3);
+}
+
+.no-links-message {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin: 10px 0;
 }
 
 @media (max-width: 768px) {

@@ -10,12 +10,13 @@ export const useFileStore = defineStore('file', {
     error: null,
     clipboard: {
       items: [],
-      action: '' // 'copy' 或 'cut'
+      operation: null // 'copy' 或 'cut'
     },
-    viewMode: 'list', // 'list', 'grid', 'details'
-    showHiddenFiles: false,
-    sortBy: 'type', // 'name', 'size', 'date', 'type'
-    sortOrder: 'asc' // 'asc', 'desc'
+    viewMode: localStorage.getItem('viewMode') || 'list', // 'list', 'grid', 'details'
+    showHiddenFiles: localStorage.getItem('showHiddenFiles') === 'true',
+    sortBy: localStorage.getItem('sortBy') || 'name', // 'name', 'size', 'date', 'type'
+    sortOrder: localStorage.getItem('sortOrder') || 'asc', // 'asc', 'desc'
+    targetToSelect: null, // 导航后需要自动选中的文件名
   }),
   
   getters: {
@@ -108,6 +109,15 @@ export const useFileStore = defineStore('file', {
         this.files = response.data;
         this.currentPath = path;
         this.loading = false;
+        
+        // 如果有目标要选中的文件，则自动选中它
+        if (this.targetToSelect) {
+          const targetFile = this.files.find(file => file.name === this.targetToSelect);
+          if (targetFile) {
+            this.selectFile(targetFile);
+          }
+          this.targetToSelect = null; // 清除目标，避免影响后续操作
+        }
       } catch (error) {
         this.error = error.response?.data?.error || '获取目录内容失败';
         this.loading = false;
@@ -205,7 +215,7 @@ export const useFileStore = defineStore('file', {
       
       this.clipboard = {
         items: [...itemsToCopy],
-        action: 'copy'
+        operation: 'copy'
       };
     },
     
@@ -216,7 +226,7 @@ export const useFileStore = defineStore('file', {
       
       this.clipboard = {
         items: [...itemsToCut],
-        action: 'cut'
+        operation: 'cut'
       };
     },
     
@@ -229,12 +239,12 @@ export const useFileStore = defineStore('file', {
           const sourceItemPath = `${item.path}`;
           const destinationPath = `${this.currentPath}/${item.name}`.replace(/\/\//g, '/');
           
-          if (this.clipboard.action === 'copy') {
+          if (this.clipboard.operation === 'copy') {
             await axios.post('/api/files/copy', {
               source: sourceItemPath,
               destination: destinationPath
             });
-          } else if (this.clipboard.action === 'cut') {
+          } else if (this.clipboard.operation === 'cut') {
             await axios.post('/api/files/move', {
               source: sourceItemPath,
               destination: destinationPath
@@ -243,8 +253,8 @@ export const useFileStore = defineStore('file', {
         }
         
         // 如果是剪切操作，清空剪贴板
-        if (this.clipboard.action === 'cut') {
-          this.clipboard = { items: [], action: '' };
+        if (this.clipboard.operation === 'cut') {
+          this.clipboard = { items: [], operation: null };
         }
         
         // 刷新当前目录
