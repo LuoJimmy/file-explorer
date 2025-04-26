@@ -263,7 +263,7 @@
             <label>源文件/目录</label>
             <input 
               type="text" 
-              v-model="linkSource.name" 
+              :value="fileStore.selectedFiles.length > 0 ? fileStore.selectedFiles[0].name : ''" 
               disabled
             />
           </div>
@@ -500,19 +500,19 @@ export default {
     const createLink = async () => {
       if (!linkName.value || !fileStore.selectedFiles.length) return;
       
-      linkSource.value = fileStore.selectedFiles[0];
-      
       try {
+        const source = fileStore.selectedFiles[0];
+        
         if (linkType.value === 'hard') {
           // 硬链接只能用于文件
-          if (!linkSource.value.isFile) {
+          if (!source.isFile) {
             alert('硬链接只能用于文件，不能用于目录');
             return;
           }
           
-          await fileStore.createHardLink(linkSource.value, linkName.value);
+          await fileStore.createHardLink(source, linkName.value);
         } else {
-          await fileStore.createSymLink(linkSource.value, linkName.value);
+          await fileStore.createSymLink(source, linkName.value);
         }
         
         showCreateLinkDialog.value = false;
