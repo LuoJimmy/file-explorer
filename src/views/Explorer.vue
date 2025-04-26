@@ -289,6 +289,13 @@
               <button type="button" @click="openDirectoryPicker">浏览...</button>
             </div>
           </div>
+          <div class="form-group" v-if="fileStore.selectedFiles.length > 0 && fileStore.selectedFiles[0].isDirectory">
+            <label>
+              <input type="checkbox" v-model="recursiveLink" />
+              递归创建文件夹内所有文件的链接
+            </label>
+            <small>将保留文件夹结构</small>
+          </div>
           <div class="dialog-buttons">
             <button type="button" @click="showCreateLinkDialog = false">取消</button>
             <button type="submit" :disabled="!linkName">创建</button>
@@ -457,6 +464,31 @@
         </div>
       </div>
     </div>
+    
+    <!-- 链接进度对话框 -->
+    <div v-if="showLinkProgress" class="dialog-overlay">
+      <div class="dialog link-progress-dialog">
+        <h3>{{ linkProcessCompleted ? '操作完成' : '创建链接进度' }}</h3>
+        
+        <div v-if="!linkProcessCompleted" class="progress-bar">
+          <div class="progress" :style="{ width: linkProgress + '%' }"></div>
+        </div>
+        
+        <div v-if="!linkProcessCompleted" class="progress-info">
+          <span>已处理 {{ processedFiles }} 个文件，共 {{ totalFiles }} 个</span>
+          <span>正在处理: {{ currentProcessingFile }}</span>
+        </div>
+        
+        <div v-else class="success-message">
+          <div class="success-icon">✓</div>
+          <p>成功为 {{ processedFiles }} 个文件创建了链接</p>
+        </div>
+        
+        <div class="dialog-buttons" v-if="linkProcessCompleted">
+          <button @click="closeLinkProgress">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -498,6 +530,7 @@ export default {
     const linkTargetDir = ref('');
     const selectedFile = ref(null);
     const hardLinks = ref([]);
+    const recursiveLink = ref(false);
     
     // 右键菜单
     const contextMenu = ref({
@@ -512,6 +545,14 @@ export default {
       title: '',
       message: ''
     });
+    
+    // 链接进度对话框
+    const showLinkProgress = ref(false);
+    const linkProgress = ref(0);
+    const processedFiles = ref(0);
+    const totalFiles = ref(0);
+    const currentProcessingFile = ref('');
+    const linkProcessCompleted = ref(false);
     
     // 加载初始目录内容
     onMounted(async () => {
@@ -650,20 +691,27 @@ export default {
       
       try {
         const source = fileStore.selectedFiles[0];
-        const targetPath = linkTargetDir.value ? 
-          `${linkTargetDir.value}/${linkName.value}` : 
-          linkName.value;
         
-        if (linkType.value === 'hard') {
-          // 硬链接只能用于文件
-          if (!source.isFile) {
-            alert('硬链接只能用于文件，不能用于目录');
-            return;
-          }
-          
-          await fileStore.createHardLink(source, targetPath);
+        // 递归创建文件夹中所有文件的链接
+        if (source.isDirectory && recursiveLink.value) {
+          await createDirectoryLinks(source);
         } else {
-          await fileStore.createSymLink(source, targetPath);
+          // 普通链接创建
+          const targetPath = linkTargetDir.value ? 
+            `${linkTargetDir.value}/${linkName.value}` : 
+            linkName.value;
+          
+          if (linkType.value === 'hard') {
+            // 硬链接只能用于文件
+            if (!source.isFile) {
+              alert('硬链接只能用于文件，不能用于目录');
+              return;
+            }
+            
+            await fileStore.createHardLink(source, targetPath);
+          } else {
+            await fileStore.createSymLink(source, targetPath);
+          }
         }
         
         showCreateLinkDialog.value = false;
@@ -1086,6 +1134,134 @@ export default {
       showDirectoryPicker.value = false;
     };
     
+    // 递归创建目录内所有文件的链接
+    const createDirectoryLinks = async (sourceDir) => {
+      try {
+        showLinkProgress.value = true;
+        linkProgress.value = 0;
+        processedFiles.value = 0;
+        totalFiles.value = 0;
+        linkProcessCompleted.value = false;
+        
+        // 创建目标根目录
+        const targetBasePath = linkTargetDir.value ? 
+          `${linkTargetDir.value}/${linkName.value}` : 
+          linkName.value;
+        
+        // 确保目标根目录存在
+        await ensureDirectoryExists(targetBasePath);
+        
+        // 递归处理文件夹
+        await processDirectoryRecursively(sourceDir.path, targetBasePath);
+        
+        // 刷新当前目录
+        await fileStore.fetchDirectory(fileStore.currentPath);
+        
+        // 显示成功信息在进度面板中
+        linkProcessCompleted.value = true;
+      } catch (error) {
+        console.error('Failed to create directory links:', error);
+        alert(`创建链接失败: ${error.message}`);
+        showLinkProgress.value = false;
+      }
+    };
+    
+    // 递归处理目录
+    const processDirectoryRecursively = async (sourcePath, targetPath) => {
+      try {
+        // 获取目录内容
+        const response = await axios.get('/api/files/list', {
+          params: {
+            path: sourcePath,
+            showHidden: fileStore.showHiddenFiles
+          }
+        });
+        
+        const files = response.data || [];
+        
+        // 处理文件
+        const regularFiles = files.filter(f => f.isFile);
+        totalFiles.value += regularFiles.length;
+        
+        // 创建当前层级的链接
+        for (const file of regularFiles) {
+          currentProcessingFile.value = file.name;
+          
+          try {
+            const sourceFilePath = `${sourcePath}/${file.name}`.replace(/\/\//g, '/');
+            const targetFilePath = `${targetPath}/${file.name}`.replace(/\/\//g, '/');
+            
+            if (linkType.value === 'hard') {
+              await axios.post('/api/links/hardlink', {
+                source: sourceFilePath,
+                target: targetFilePath
+              });
+            } else {
+              await axios.post('/api/links/symlink', {
+                source: sourceFilePath,
+                target: targetFilePath
+              });
+            }
+            
+            // 更新进度
+            processedFiles.value++;
+            if (totalFiles.value > 0) {
+              linkProgress.value = (processedFiles.value / totalFiles.value) * 100;
+            }
+          } catch (error) {
+            console.error(`Failed to create link for file ${file.name}:`, error);
+          }
+        }
+        
+        // 递归处理子目录
+        const directories = files.filter(f => f.isDirectory);
+        for (const dir of directories) {
+          const subSourcePath = `${sourcePath}/${dir.name}`.replace(/\/\//g, '/');
+          const subTargetPath = `${targetPath}/${dir.name}`.replace(/\/\//g, '/');
+          
+          // 创建子目录
+          await ensureDirectoryExists(subTargetPath);
+          
+          // 递归处理
+          await processDirectoryRecursively(subSourcePath, subTargetPath);
+        }
+      } catch (error) {
+        console.error(`Failed to process directory ${sourcePath}:`, error);
+        throw error;
+      }
+    };
+    
+    // 确保目录存在
+    const ensureDirectoryExists = async (dirPath) => {
+      try {
+        // 如果是绝对路径，提取目录名和父路径
+        let parentPath = '';
+        let dirName = dirPath;
+        
+        if (dirPath.includes('/')) {
+          const parts = dirPath.split('/');
+          dirName = parts.pop();
+          parentPath = parts.join('/');
+        }
+        
+        await axios.post('/api/files/directory', {
+          path: parentPath,
+          name: dirName
+        });
+      } catch (error) {
+        // 如果目录已存在，忽略错误
+        if (!error.response || error.response.status !== 409) {
+          console.error('Error creating directory:', error);
+        }
+      }
+    };
+    
+    // 关闭链接进度对话框
+    const closeLinkProgress = () => {
+      showLinkProgress.value = false;
+      linkProcessCompleted.value = false;
+    };
+    
     return {
       fileStore,
       fileInput,
@@ -1113,6 +1289,13 @@ export default {
       contextMenu,
       infoDialog,
       hardLinks,
+      recursiveLink,
+      showLinkProgress,
+      linkProgress,
+      processedFiles,
+      totalFiles,
+      currentProcessingFile,
+      linkProcessCompleted,
       navigateTo,
       navigateUp,
       refreshDirectory,
@@ -1140,7 +1323,9 @@ export default {
       openDirectoryPicker,
       pickerNavigateTo,
       pickerNavigateUp,
-      selectLinkTargetDir
+      selectLinkTargetDir,
+      createDirectoryLinks,
+      closeLinkProgress
     };
   }
 };
@@ -1771,5 +1956,64 @@ button.active {
   margin-top: 10px;
   font-size: 0.8em;
   color: #aaa;
+}
+
+.link-progress-dialog {
+  max-width: 500px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  margin: 15px 0;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+  color: #666;
+}
+
+input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.success-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0;
+  color: #42b983;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  background-color: #e8f5f0;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #42b983;
+  font-weight: bold;
+}
+
+.success-message p {
+  font-size: 16px;
+  margin: 0;
 }
 </style> 
