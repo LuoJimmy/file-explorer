@@ -1,19 +1,15 @@
-version: '3.8'
-
+version: '3'
 services:
-  linux-file-explorer:
-    build: .
-    container_name: linux-file-explorer
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8080:8080"  # 前端端口
+      - "3000:3000"  # API端口
     volumes:
-      - ${HOST_PATH:-/home}:/mnt/explorer
-      - file-explorer-data:/app/data
+      - ${HOST_PATH:-/home}:/files  # 挂载宿主机文件系统，可以根据需要修改
     environment:
       - NODE_ENV=production
-      - PORT=8080
-      - BASE_PATH=/mnt/explorer
+    container_name: file-explorer
     restart: unless-stopped
-
-volumes:
-  file-explorer-data: 
