@@ -1,5 +1,5 @@
 # 构建前端
-FROM node:16-alpine as frontend-build
+FROM node:16-alpine AS frontend-build
 WORKDIR /app
 COPY package*.json ./
 RUN npm config set registry https://registry.npmmirror.com && \
@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 
 # 构建后端
-FROM node:16-alpine as backend-build
+FROM node:16-alpine AS backend-build
 WORKDIR /app
 COPY server/ ./
 # 安装后端依赖，使用主项目的依赖（由于后端没有单独的package.json）
