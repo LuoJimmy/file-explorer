@@ -1,34 +1,33 @@
 # 构建前端
-FROM node:16-alpine AS frontend-build
+FROM node:18-alpine AS frontend-build
 WORKDIR /app
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm config set registry https://registry.npmmirror.com && \
     npm ci
-COPY . .
+COPY frontend/ .
 RUN npm run build
 
 # 构建后端
-FROM node:16-alpine AS backend-build
+FROM node:18-alpine AS backend-build
 WORKDIR /app
-COPY server/ ./
-# 安装后端依赖，使用主项目的依赖（由于后端没有单独的package.json）
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm config set registry https://registry.npmmirror.com && \
     npm ci --production
+COPY backend/ .
 
 # 生产镜像
-FROM node:16-alpine
+FROM node:18-alpine
 WORKDIR /app
 
 # 创建文件存储目录
 RUN mkdir -p /files && chmod 755 /files
 
 # 复制前端构建结果
-COPY --from=frontend-build /app/dist /app/dist
+COPY --from=frontend-build /app/dist /app/frontend/dist
 
 # 复制后端代码和依赖
-COPY --from=backend-build /app /app/server
-COPY --from=backend-build /app/node_modules /app/node_modules
+COPY --from=backend-build /app /app/backend
+COPY --from=backend-build /app/node_modules /app/backend/node_modules
 
 # 复制启动脚本
 COPY docker-entrypoint.sh /app/

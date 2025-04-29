@@ -1,14 +1,10 @@
 #!/bin/sh
 set -e
 
-# 设置文件系统基础路径环境变量
-export BASE_PATH="/files"
-echo "Setting BASE_PATH to $BASE_PATH"
-
 # 启动后端服务
 echo "Starting backend server..."
-cd /app/server
-node index.js &
+cd /app/backend
+node src/index.js &
 
 # 等待后端启动
 sleep 3
@@ -19,7 +15,7 @@ npm install -g serve
 
 # 启动前端静态文件服务器
 echo "Starting frontend server..."
-cd /app
+cd /app/frontend
 serve -s dist -l 8080 &
 
 # 保持容器运行

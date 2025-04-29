@@ -26,14 +26,14 @@
 
 ```bash
 # 拉取镜像
-docker pull linux-file-explorer
+docker pull lochito/file-explorer:latest
 
 # 运行容器
 docker run -d \
   --name file-explorer \
   -p 8080:8080 \
-  -v /path/on/host:/mnt/explorer \
-  linux-file-explorer
+  -v /path/on/host:/files \
+  lochito/file-explorer:latest
 ```
 
 访问 `http://localhost:8080` 开始使用文件资源管理器。
@@ -41,29 +41,31 @@ docker run -d \
 ### 从源码构建
 
 1. 克隆仓库
+
 ```bash
-git clone https://github.com/yourusername/linux-file-explorer.git
-cd linux-file-explorer
+git clone https://github.com/LuoJimmy/file-explorer.git
+cd file-explorer
 ```
 
 2. 构建并运行
+
 ```bash
 docker-compose up -d
 ```
 
-## 开发
+## 贡献指南
 
-```bash
-# 安装依赖
-npm install
+[贡献指南](CONTRIBUTING.md)
 
-# 开发模式运行前端
-npm run dev
+## 打包指南
 
-# 开发模式运行后端
-npm run server:dev
-```
+[打包指南](BUILDING.md)
+
+## 更新日志
+
+[更新日志](CHANGELOG.md)
+
 
 ## 许可证
 
-MIT 
+MIT

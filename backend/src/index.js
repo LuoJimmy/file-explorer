@@ -11,8 +11,8 @@ const filesRouter = require('./routes/files');
 const linksRouter = require('./routes/links');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
-const BASE_PATH = process.env.BASE_PATH || '/mnt/explorer';
+const PORT = process.env.PORT || 3000;
+const BASE_PATH = process.env.BASE_PATH || '/files';
 
 // 中间件
 app.use(cors());
@@ -25,7 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 静态文件服务
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
 // API路由
 app.use('/api/files', filesRouter);
@@ -33,7 +33,12 @@ app.use('/api/links', linksRouter);
 
 // 健康检查
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date(),
+    basePath: BASE_PATH,
+    filesExist: fs.existsSync(BASE_PATH)
+  });
 });
 
 // 系统信息
@@ -55,23 +60,32 @@ app.use('/api/*', (req, res) => {
 
 // 所有其他请求都发送到Vue应用
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 });
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error:', err);
+  console.error('Error stack:', err.stack);
   res.status(500).json({
     error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
 // 确保基础目录存在
-fs.ensureDirSync(BASE_PATH);
+try {
+  fs.ensureDirSync(BASE_PATH);
+  console.log(`Base directory created/verified: ${BASE_PATH}`);
+} catch (error) {
+  console.error(`Failed to create/verify base directory: ${error.message}`);
+  process.exit(1);
+}
 
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Base file system path: ${BASE_PATH}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 }); 
