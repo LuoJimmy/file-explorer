@@ -6,13 +6,14 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "start": "pnpm -r --parallel start",
-    "install": "pnpm install",
-    "clean": "pnpm -r clean",
+    "clean": "pnpm -r clean && rimraf node_modules && pnpm store prune",
     "lint": "pnpm -r lint",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "docker:prune": "docker system prune -f",
+    "docker:clean": "pnpm docker:down && pnpm docker:prune"
   },
   "engines": {
     "node": ">=18.12.0",
