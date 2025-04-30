@@ -5,8 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"  # 前端端口
-      - "3000:3000"  # API端口
+      - "8080:8080"  # nginx端口
     volumes:
       - /Users/jimmyluo/Downloads:/files  # 挂载宿主机文件系统，可以根据需要修改
     environment:
@@ -14,3 +13,4 @@ services:
       - BASE_PATH=/files
     container_name: file-explorer
     restart: unless-stopped
+

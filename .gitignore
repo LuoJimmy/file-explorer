@@ -35,5 +35,6 @@ logs/
 
 # 临时文件
 tmp/
-temp/ 
+temp/
 files/
+**/package-lock.json

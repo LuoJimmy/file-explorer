@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
+// 创建axios实例
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 10000
+})
+
 export const useFileStore = defineStore('file', {
   state: () => ({
     currentPath: '',
@@ -99,7 +105,7 @@ export const useFileStore = defineStore('file', {
         this.error = null;
         this.selectedFiles = [];
         
-        const response = await axios.get('/api/files/list', {
+        const response = await api.get('/files/list', {
           params: {
             path,
             showHidden: this.showHiddenFiles
@@ -128,7 +134,7 @@ export const useFileStore = defineStore('file', {
     // 创建新文件夹
     async createDirectory(name) {
       try {
-        const response = await axios.post('/api/files/directory', {
+        const response = await api.post('/files/directory', {
           path: this.currentPath,
           name
         });
@@ -151,7 +157,7 @@ export const useFileStore = defineStore('file', {
           formData.append('files', files[i]);
         }
         
-        const response = await axios.post(`/api/files/upload?path=${this.currentPath}`, formData, {
+        const response = await api.post(`/files/upload?path=${this.currentPath}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -174,7 +180,7 @@ export const useFileStore = defineStore('file', {
       
       try {
         for (const item of filesToDelete) {
-          await axios.delete('/api/files', {
+          await api.delete('/files', {
             params: {
               path: `${this.currentPath}/${item.name}`.replace(/\/\//g, '/')
             }
@@ -194,7 +200,7 @@ export const useFileStore = defineStore('file', {
       try {
         const currentItemPath = `${this.currentPath}/${item.name}`.replace(/\/\//g, '/');
         
-        const response = await axios.put('/api/files/rename', {
+        const response = await api.put('/files/rename', {
           path: currentItemPath,
           newName
         });
@@ -240,12 +246,12 @@ export const useFileStore = defineStore('file', {
           const destinationPath = `${this.currentPath}/${item.name}`.replace(/\/\//g, '/');
           
           if (this.clipboard.operation === 'copy') {
-            await axios.post('/api/files/copy', {
+            await api.post('/files/copy', {
               source: sourceItemPath,
               destination: destinationPath
             });
           } else if (this.clipboard.operation === 'cut') {
-            await axios.post('/api/files/move', {
+            await api.post('/files/move', {
               source: sourceItemPath,
               destination: destinationPath
             });
@@ -271,7 +277,7 @@ export const useFileStore = defineStore('file', {
         const sourcePath = source.path;
         const targetPath = `${this.currentPath}/${targetName}`.replace(/\/\//g, '/');
         
-        const response = await axios.post('/api/links/hardlink', {
+        const response = await api.post('/links/hardlink', {
           source: sourcePath,
           target: targetPath
         });
@@ -291,7 +297,7 @@ export const useFileStore = defineStore('file', {
         const sourcePath = source.path;
         const targetPath = `${this.currentPath}/${targetName}`.replace(/\/\//g, '/');
         
-        const response = await axios.post('/api/links/symlink', {
+        const response = await api.post('/links/symlink', {
           source: sourcePath,
           target: targetPath
         });
@@ -329,11 +335,13 @@ export const useFileStore = defineStore('file', {
     // 更改视图模式
     setViewMode(mode) {
       this.viewMode = mode;
+      localStorage.setItem('viewMode', mode);
     },
     
     // 切换显示隐藏文件
     toggleHiddenFiles() {
       this.showHiddenFiles = !this.showHiddenFiles;
+      localStorage.setItem('showHiddenFiles', this.showHiddenFiles);
       this.fetchDirectory(this.currentPath);
     },
     
@@ -346,6 +354,9 @@ export const useFileStore = defineStore('file', {
         this.sortBy = by;
         if (order) this.sortOrder = order;
       }
+      
+      localStorage.setItem('sortBy', this.sortBy);
+      localStorage.setItem('sortOrder', this.sortOrder);
     }
   }
 }); 

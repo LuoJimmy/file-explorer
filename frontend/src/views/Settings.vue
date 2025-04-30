@@ -106,6 +106,12 @@ import { ref, reactive, onMounted } from 'vue';
 import { useFileStore } from '../store/fileStore';
 import axios from 'axios';
 
+// 创建axios实例
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 10000
+})
+
 export default {
   name: 'Settings',
   setup() {
@@ -125,7 +131,7 @@ export default {
     const getSystemInfo = async () => {
       try {
         loading.value = true;
-        const response = await axios.get('/api/system');
+        const response = await api.get('/system');
         systemInfo.value = response.data;
       } catch (error) {
         console.error('Failed to get system info:', error);

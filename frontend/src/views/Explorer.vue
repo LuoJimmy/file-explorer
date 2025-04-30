@@ -498,6 +498,12 @@ import { ref, onMounted, nextTick } from 'vue';
 import { useFileStore } from '../store/fileStore';
 import axios from 'axios';
 
+// 创建axios实例
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 10000
+})
+
 export default {
   name: 'Explorer',
   setup() {
@@ -793,7 +799,7 @@ export default {
     const findHardLinks = async (file) => {
       try {
         fileStore.loading = true;
-        const response = await axios.get(`/api/links/find-hardlinks`, {
+        const response = await api.get('/links/find-hardlinks', {
           params: { path: file.path }
         });
         
@@ -838,7 +844,7 @@ export default {
     // 获取符号链接目标
     const getSymLinkTarget = async (file) => {
       try {
-        const response = await axios.get('/api/links/symlink-target', {
+        const response = await api.get('/links/symlink-target', {
           params: {
             path: file.path
           }
@@ -1005,7 +1011,7 @@ export default {
     const deleteHardLink = async (path) => {
       if (confirm(`确定要删除硬链接 "${path}" 吗？`)) {
         try {
-          await axios.delete('/api/files/', {
+          await api.delete('/files/', {
             params: { path: path }
           });
           
@@ -1027,7 +1033,7 @@ export default {
         try {
           // 创建删除所有硬链接的请求数组
           const deletePromises = hardLinks.value.map(link => 
-            axios.delete('/api/files/', {
+            api.delete('/files/', {
               params: { path: link.fullPath }
             })
           );
@@ -1061,7 +1067,7 @@ export default {
       pickerLoading.value = true;
       try {
         // 修改为正确的API路径
-        const response = await axios.get('/api/files/list', { 
+        const response = await api.get('/files/list', { 
           params: { 
             path: path,
             showHidden: fileStore.showHiddenFiles
@@ -1171,7 +1177,7 @@ export default {
     const processDirectoryRecursively = async (sourcePath, targetPath) => {
       try {
         // 获取目录内容
-        const response = await axios.get('/api/files/list', {
+        const response = await api.get('/files/list', {
           params: {
             path: sourcePath,
             showHidden: fileStore.showHiddenFiles
@@ -1193,12 +1199,12 @@ export default {
             const targetFilePath = `${targetPath}/${file.name}`.replace(/\/\//g, '/');
             
             if (linkType.value === 'hard') {
-              await axios.post('/api/links/hardlink', {
+              await api.post('/links/hardlink', {
                 source: sourceFilePath,
                 target: targetFilePath
               });
             } else {
-              await axios.post('/api/links/symlink', {
+              await api.post('/links/symlink', {
                 source: sourceFilePath,
                 target: targetFilePath
               });
@@ -1245,7 +1251,7 @@ export default {
           parentPath = parts.join('/');
         }
         
-        await axios.post('/api/files/directory', {
+        await api.post('/files/directory', {
           path: parentPath,
           name: dirName
         });
