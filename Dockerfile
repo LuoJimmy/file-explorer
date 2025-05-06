@@ -30,21 +30,15 @@ COPY . .
 RUN cd frontend && pnpm run build
 
 # 生产阶段
-FROM node:18-alpine AS production
+FROM nginx:alpine AS production
 WORKDIR /app
 
 # 设置默认环境变量
 ENV PORT=3000 \
     BASE_PATH=/files
 
-# 安装必要的系统依赖
-RUN apk add --no-cache nginx curl && \
-    mkdir -p /files /app/backend/logs /var/log/nginx /var/cache/nginx && \
-    chmod 755 /files && \
-    chown -R nginx:nginx /var/log/nginx /var/cache/nginx
-
 # 复制Nginx配置
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 复制前端构建结果
 COPY --from=builder /app/frontend/dist /app/frontend/dist
@@ -52,8 +46,12 @@ COPY --from=builder /app/frontend/dist /app/frontend/dist
 # 复制后端代码和依赖
 COPY --from=builder /app/backend/src /app/backend/src
 COPY --from=builder /app/backend/package.json /app/backend/
-COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/backend/node_modules /app/backend/node_modules
+
+# 安装Node.js并创建必要目录
+RUN apk add --no-cache nodejs curl && \
+    mkdir -p /files /app/backend/logs && \
+    chmod 755 /files
 
 # 复制启动脚本并设置权限
 COPY docker-entrypoint.sh /app/

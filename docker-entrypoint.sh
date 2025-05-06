@@ -10,29 +10,15 @@ fi
 export PORT=${PORT:-3000}
 export BASE_PATH=${BASE_PATH:-/files}
 
-# 创建必要的目录
-echo "Creating necessary directories..."
-mkdir -p /app/backend/logs
-mkdir -p /app/frontend/dist
-mkdir -p /var/log/nginx
-mkdir -p /var/cache/nginx
-
-# 设置Nginx目录权限
-chown -R nginx:nginx /var/log/nginx /var/cache/nginx
-
-# 启动Nginx
+# 启动Nginx - 后台运行
 echo "Starting Nginx..."
-nginx -t  # 测试Nginx配置
-nginx -g "daemon off;" &
-NGINX_PID=$!
-echo "Nginx started with PID: $NGINX_PID"
+nginx
 
 # 启动Node.js后端服务
 echo "Starting backend server on port ${PORT}..."
 cd /app/backend
 node src/index.js > /app/backend/logs/app.log 2>&1 &
 BACKEND_PID=$!
-echo "Backend started with PID: $BACKEND_PID"
 
 # 更高效的健康检查
 echo "Waiting for backend service to be ready..."
@@ -66,12 +52,6 @@ for i in $(seq 1 $MAX_ATTEMPTS); do
   sleep 1
 done
 
-# 检查Nginx状态
-if ! kill -0 $NGINX_PID 2>/dev/null; then
-  echo "Nginx failed to start!"
-  exit 1
-fi
-
 # 保持容器运行
 echo "Services started. Container is now running..."
-wait $NGINX_PID $BACKEND_PID
+exec tail -f /dev/null
