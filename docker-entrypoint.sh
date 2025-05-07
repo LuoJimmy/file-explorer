@@ -10,6 +10,16 @@ fi
 export PORT=${PORT:-3000}
 export BASE_PATH=${BASE_PATH:-/files}
 
+# 显示调试信息
+echo "Current directory: $(pwd)"
+echo "Node version: $(node -v)"
+echo "NPM version: $(npm -v)"
+echo "PNPM version: $(pnpm -v)"
+echo "Backend directory contents:"
+ls -la /app/backend
+echo "Node modules directory contents:"
+ls -la /app/backend/node_modules
+
 # 启动Nginx - 后台运行
 echo "Starting Nginx..."
 nginx

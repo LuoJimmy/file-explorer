@@ -30,15 +30,21 @@ COPY . .
 RUN cd frontend && pnpm run build
 
 # 生产阶段
-FROM nginx:alpine AS production
+FROM node:18-alpine AS production
 WORKDIR /app
 
 # 设置默认环境变量
 ENV PORT=3000 \
-    BASE_PATH=/files
+    BASE_PATH=/files \
+    NODE_ENV=production
+
+# 安装pnpm
+RUN npm install -g pnpm@8.15.3 && \
+    pnpm config set registry https://registry.npmmirror.com
 
 # 复制Nginx配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # 复制前端构建结果
 COPY --from=builder /app/frontend/dist /app/frontend/dist
@@ -46,12 +52,17 @@ COPY --from=builder /app/frontend/dist /app/frontend/dist
 # 复制后端代码和依赖
 COPY --from=builder /app/backend/src /app/backend/src
 COPY --from=builder /app/backend/package.json /app/backend/
-COPY --from=builder /app/backend/node_modules /app/backend/node_modules
 
-# 安装Node.js并创建必要目录
-RUN apk add --no-cache nodejs curl && \
+# 安装后端依赖
+RUN cd /app/backend && \
+    pnpm install --prod && \
     mkdir -p /files /app/backend/logs && \
-    chmod 755 /files
+    chmod -R 755 /files /app/backend && \
+    chown -R node:node /app/backend
+
+# 安装Nginx
+RUN apk add --no-cache nginx curl && \
+    chown -R nginx:nginx /app/frontend/dist
 
 # 复制启动脚本并设置权限
 COPY docker-entrypoint.sh /app/
