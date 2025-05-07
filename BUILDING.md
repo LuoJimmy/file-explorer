@@ -11,7 +11,7 @@ docker build -t file-explorer:latest .
 **2.测试运行**
 
 ```bash
-docker run -p 8080:8080 -p 3000:3000 -v /your/local/path:/files -d --name file-explorer file-explorer:latest
+docker run -p 8080:8080 -v /your/local/path:/files -d --name file-explorer file-explorer:latest
 ```
 
 **3.推送到 Docker 仓库（可选）**
@@ -37,12 +37,40 @@ docker-compose up -d
 方法二：直接使用docker命令
 ```bash
 docker pull your-username/file-explorer:latest
-docker run -p 8080:8080 -p 3000:3000 -v /path/to/files:/files -d --name file-explorer your-username/file-explorer:latest
+docker run -p 8080:8080 -v /path/to/files:/files -d --name file-explorer your-username/file-explorer:latest
 ````
 
 **5.验证部署**
-访问 http://服务器 IP:8080 查看前端界面
-接口测试：http://服务器 IP:3000/api/health
+
+- 访问 http://服务器 IP:8080 查看前端界面
+  ```bash
+  # 或者通过curl
+  curl http://localhost:8080
+  ```
+- 接口测试：http://服务器 IP:3000/api/health
+
+  ```
+  docker exec file-explorer curl http://localhost:3000/api/health
+  ```
+
+- 检查容器日志：
+
+```bash
+docker logs file-explorer
+```
+
+- 检查后端服务的日志:
+
+```bash
+docker exec file-explorer cat /app/backend/logs/app.log
+```
+
+- 检查容器内的进程：
+
+```bash
+docker exec file-explorer ps aux
+```
+
 注意事项：
 确保挂载的文件路径有正确的读写权限
 如需修改端口映射，请同时更新应用配置和 Docker 配置
