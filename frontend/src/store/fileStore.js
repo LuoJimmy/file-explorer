@@ -24,20 +24,20 @@ export const useFileStore = defineStore('file', {
     sortOrder: localStorage.getItem('sortOrder') || 'asc', // 'asc', 'desc'
     targetToSelect: null, // 导航后需要自动选中的文件名
   }),
-  
+
   getters: {
     // 获取当前目录
     currentDirectory: (state) => {
       return state.currentPath || '/';
     },
-    
+
     // 计算出当前路径的面包屑
     breadcrumbs: (state) => {
       if (!state.currentPath) return [{ name: '根目录', path: '' }];
-      
+
       const parts = state.currentPath.split('/').filter(Boolean);
       const breadcrumbs = [{ name: '根目录', path: '' }];
-      
+
       let currentPath = '';
       parts.forEach(part => {
         currentPath += '/' + part;
@@ -46,37 +46,37 @@ export const useFileStore = defineStore('file', {
           path: currentPath.slice(1) // 移除开头的斜杠
         });
       });
-      
+
       return breadcrumbs;
     },
-    
+
     // 排序后的文件列表
     sortedFiles: (state) => {
       const sorted = [...state.files];
-      
+
       sorted.sort((a, b) => {
         // 文件和目录分开排序
         if (a.isDirectory && !b.isDirectory) return -1;
         if (!a.isDirectory && b.isDirectory) return 1;
-        
+
         // 根据选定的排序字段排序
         switch (state.sortBy) {
           case 'name':
-            return state.sortOrder === 'asc' 
+            return state.sortOrder === 'asc'
               ? a.name.localeCompare(b.name)
               : b.name.localeCompare(a.name);
           case 'size':
-            return state.sortOrder === 'asc' 
+            return state.sortOrder === 'asc'
               ? a.size - b.size
               : b.size - a.size;
           case 'date':
-            return state.sortOrder === 'asc' 
+            return state.sortOrder === 'asc'
               ? new Date(a.modifiedTime) - new Date(b.modifiedTime)
               : new Date(b.modifiedTime) - new Date(a.modifiedTime);
           case 'type':
             // 同为目录或同为文件，按名称排序
             if (a.isDirectory === b.isDirectory) {
-              return state.sortOrder === 'asc' 
+              return state.sortOrder === 'asc'
                 ? a.name.localeCompare(b.name)
                 : b.name.localeCompare(a.name);
             }
@@ -86,17 +86,17 @@ export const useFileStore = defineStore('file', {
             return 0;
         }
       });
-      
+
       return sorted;
     },
-    
+
     // 是否有选择的文件
     hasSelection: (state) => state.selectedFiles.length > 0,
-    
+
     // 剪贴板是否有内容
     hasClipboard: (state) => state.clipboard.items.length > 0
   },
-  
+
   actions: {
     // 获取目录内容
     async fetchDirectory(path = '') {
@@ -104,18 +104,18 @@ export const useFileStore = defineStore('file', {
         this.loading = true;
         this.error = null;
         this.selectedFiles = [];
-        
+
         const response = await api.get('/files/list', {
           params: {
             path,
             showHidden: this.showHiddenFiles
           }
         });
-        
+
         this.files = response.data;
         this.currentPath = path;
         this.loading = false;
-        
+
         // 如果有目标要选中的文件，则自动选中它
         if (this.targetToSelect) {
           const targetFile = this.files.find(file => file.name === this.targetToSelect);
@@ -130,7 +130,7 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 创建新文件夹
     async createDirectory(name) {
       try {
@@ -138,7 +138,7 @@ export const useFileStore = defineStore('file', {
           path: this.currentPath,
           name
         });
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
         return response.data;
@@ -147,22 +147,22 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 上传文件
     async uploadFiles(files) {
       try {
         const formData = new FormData();
-        
+
         for (let i = 0; i < files.length; i++) {
           formData.append('files', files[i]);
         }
-        
+
         const response = await api.post(`/files/upload?path=${this.currentPath}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
         return response.data;
@@ -171,13 +171,13 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 删除文件或目录
     async deleteItems(items = null) {
       const filesToDelete = items || this.selectedFiles;
-      
+
       if (!filesToDelete.length) return;
-      
+
       try {
         for (const item of filesToDelete) {
           await api.delete('/files', {
@@ -186,7 +186,7 @@ export const useFileStore = defineStore('file', {
             }
           });
         }
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
       } catch (error) {
@@ -194,17 +194,17 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 重命名文件或目录
     async renameItem(item, newName) {
       try {
         const currentItemPath = `${this.currentPath}/${item.name}`.replace(/\/\//g, '/');
-        
+
         const response = await api.put('/files/rename', {
           path: currentItemPath,
           newName
         });
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
         return response.data;
@@ -213,56 +213,71 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 复制文件到剪贴板
     copyToClipboard(items = null) {
       const itemsToCopy = items || this.selectedFiles;
       if (!itemsToCopy.length) return;
-      
+
       this.clipboard = {
         items: [...itemsToCopy],
         operation: 'copy'
       };
     },
-    
+
     // 剪切文件到剪贴板
     cutToClipboard(items = null) {
       const itemsToCut = items || this.selectedFiles;
       if (!itemsToCut.length) return;
-      
+
       this.clipboard = {
         items: [...itemsToCut],
         operation: 'cut'
       };
     },
-    
+
+    // 生成唯一的文件名
+    generateUniqueFileName(baseName, extension = '') {
+      const nameWithoutExt = extension ? baseName.slice(0, -(extension.length + 1)) : baseName;
+      let counter = 1;
+      let newName = baseName;
+
+      while (this.files.some(file => file.name === newName)) {
+        newName = `${nameWithoutExt} (${counter})${extension ? '.' + extension : ''}`;
+        counter++;
+      }
+
+      return newName;
+    },
+
     // 粘贴文件
     async pasteFromClipboard() {
       if (!this.clipboard.items.length) return;
-      
+
       try {
         for (const item of this.clipboard.items) {
           const sourceItemPath = `${item.path}`;
           const destinationPath = `${this.currentPath}/${item.name}`.replace(/\/\//g, '/');
-          
-          if (this.clipboard.operation === 'copy') {
-            await api.post('/files/copy', {
-              source: sourceItemPath,
-              destination: destinationPath
-            });
-          } else if (this.clipboard.operation === 'cut') {
-            await api.post('/files/move', {
-              source: sourceItemPath,
-              destination: destinationPath
+
+          const response = await api.post('/files/copy', {
+            source: sourceItemPath,
+            destination: destinationPath,
+            operation: this.clipboard.operation
+          });
+
+          // 如果是剪切操作，删除源文件
+          if (this.clipboard.operation === 'cut') {
+            await api.delete('/files', {
+              params: {
+                path: sourceItemPath
+              }
             });
           }
         }
-        
-        // 如果是剪切操作，清空剪贴板
-        if (this.clipboard.operation === 'cut') {
-          this.clipboard = { items: [], operation: null };
-        }
-        
+
+        // 清空剪贴板
+        this.clipboard = { items: [], operation: null };
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
       } catch (error) {
@@ -270,18 +285,16 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 创建硬链接
-    async createHardLink(source, targetName) {
+    async createHardLink(source, targetPath) {
       try {
         const sourcePath = source.path;
-        const targetPath = `${this.currentPath}/${targetName}`.replace(/\/\//g, '/');
-        
         const response = await api.post('/links/hardlink', {
           source: sourcePath,
           target: targetPath
         });
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
         return response.data;
@@ -290,18 +303,16 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 创建软链接
-    async createSymLink(source, targetName) {
+    async createSymLink(source, targetPath) {
       try {
         const sourcePath = source.path;
-        const targetPath = `${this.currentPath}/${targetName}`.replace(/\/\//g, '/');
-        
         const response = await api.post('/links/symlink', {
           source: sourcePath,
           target: targetPath
         });
-        
+
         // 刷新当前目录
         await this.fetchDirectory(this.currentPath);
         return response.data;
@@ -310,41 +321,41 @@ export const useFileStore = defineStore('file', {
         throw error;
       }
     },
-    
+
     // 选择文件
     selectFile(file, multiSelect = false) {
       if (!multiSelect) {
         this.selectedFiles = [file];
         return;
       }
-      
+
       const index = this.selectedFiles.findIndex(f => f.name === file.name);
-      
+
       if (index === -1) {
         this.selectedFiles.push(file);
       } else {
         this.selectedFiles.splice(index, 1);
       }
     },
-    
+
     // 清除选择
     clearSelection() {
       this.selectedFiles = [];
     },
-    
+
     // 更改视图模式
     setViewMode(mode) {
       this.viewMode = mode;
       localStorage.setItem('viewMode', mode);
     },
-    
+
     // 切换显示隐藏文件
     toggleHiddenFiles() {
       this.showHiddenFiles = !this.showHiddenFiles;
       localStorage.setItem('showHiddenFiles', this.showHiddenFiles);
       this.fetchDirectory(this.currentPath);
     },
-    
+
     // 设置排序方式
     setSortOptions(by, order = null) {
       if (this.sortBy === by && order === null) {
@@ -354,9 +365,65 @@ export const useFileStore = defineStore('file', {
         this.sortBy = by;
         if (order) this.sortOrder = order;
       }
-      
+
       localStorage.setItem('sortBy', this.sortBy);
       localStorage.setItem('sortOrder', this.sortOrder);
+    },
+
+    // 打开文件
+    async openFile(file) {
+      try {
+        const response = await api.post('/files/open', {
+          path: `${this.currentPath}/${file.name}`.replace(/\/\//g, '/')
+        });
+        return response.data;
+      } catch (error) {
+        this.error = error.response?.data?.error || '打开文件失败';
+        throw error;
+      }
+    },
+
+    // 查找硬链接
+    async findHardLinks(file) {
+      try {
+        const response = await api.get('/links/find-hardlinks', {
+          params: {
+            path: file.path
+          }
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Failed to find hard links:', error);
+        throw error;
+      }
+    },
+
+    // 删除硬链接
+    async deleteHardLink(path) {
+      try {
+        await api.delete('/links/delete-hardlink', {
+          params: {
+            path
+          }
+        });
+      } catch (error) {
+        console.error('Failed to delete hard link:', error);
+        throw error;
+      }
+    },
+
+    // 删除所有硬链接
+    async deleteAllHardLinks(file) {
+      try {
+        await api.delete('/links/delete-all-hardlinks', {
+          params: {
+            path: file.path
+          }
+        });
+      } catch (error) {
+        console.error('Failed to delete all hard links:', error);
+        throw error;
+      }
     }
   }
-}); 
+});

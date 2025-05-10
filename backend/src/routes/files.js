@@ -14,7 +14,9 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, file.originalname);
+    // 对中文文件名进行编码处理
+    const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    cb(null, decodedName);
   }
 });
 
@@ -25,32 +27,32 @@ router.get('/list', async (req, res) => {
   try {
     const requestPath = req.query.path || '';
     const fullPath = path.join(BASE_PATH, requestPath);
-    
+
     // 安全检查：确保路径在BASE_PATH内
     if (!fullPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查路径是否存在
     if (!await fs.pathExists(fullPath)) {
       return res.status(404).json({ error: 'Path not found' });
     }
-    
+
     // 读取目录内容
     const items = await fs.readdir(fullPath);
     const result = [];
-    
+
     // 获取每个项目的详细信息
     for (const item of items) {
       try {
         const itemPath = path.join(fullPath, item);
         const stats = await fs.stat(itemPath);
-        
+
         // 排除隐藏文件（可通过前端参数控制）
         if (req.query.showHidden !== 'true' && item.startsWith('.')) {
           continue;
         }
-        
+
         // 构建文件/文件夹信息
         result.push({
           name: item,
@@ -72,14 +74,14 @@ router.get('/list', async (req, res) => {
         // 继续处理其他文件
       }
     }
-    
+
     // 根据类型和名称排序：文件夹优先
     result.sort((a, b) => {
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
       return a.name.localeCompare(b.name);
     });
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error listing directory:', error);
@@ -92,23 +94,23 @@ router.get('/content', async (req, res) => {
   try {
     const requestPath = req.query.path || '';
     const fullPath = path.join(BASE_PATH, requestPath);
-    
+
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查文件是否存在
     if (!await fs.pathExists(fullPath)) {
       return res.status(404).json({ error: 'File not found' });
     }
-    
+
     // 检查是否是文件
     const stats = await fs.stat(fullPath);
     if (!stats.isFile()) {
       return res.status(400).json({ error: 'Not a file' });
     }
-    
+
     // 发送文件
     res.sendFile(fullPath);
   } catch (error) {
@@ -121,18 +123,18 @@ router.get('/content', async (req, res) => {
 router.post('/directory', async (req, res) => {
   try {
     const { path: dirPath, name } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Directory name is required' });
     }
-    
+
     const fullPath = path.join(BASE_PATH, dirPath || '', name);
-    
+
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 创建目录
     await fs.ensureDir(fullPath);
     res.json({ success: true, path: fullPath.replace(BASE_PATH, '') });
@@ -145,8 +147,8 @@ router.post('/directory', async (req, res) => {
 // 上传文件
 router.post('/upload', upload.array('files'), (req, res) => {
   try {
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       files: req.files.map(file => ({
         name: file.filename,
         path: path.join(req.query.path || '', file.filename).replace(/\\/g, '/'),
@@ -164,17 +166,17 @@ router.delete('/', async (req, res) => {
   try {
     const requestPath = req.query.path || '';
     const fullPath = path.join(BASE_PATH, requestPath);
-    
+
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH) || fullPath === BASE_PATH) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查文件是否存在
     if (!await fs.pathExists(fullPath)) {
       return res.status(404).json({ error: 'Path not found' });
     }
-    
+
     // 删除文件或目录
     await fs.remove(fullPath);
     res.json({ success: true });
@@ -188,33 +190,33 @@ router.delete('/', async (req, res) => {
 router.put('/rename', async (req, res) => {
   try {
     const { path: itemPath, newName } = req.body;
-    
+
     if (!itemPath || !newName) {
       return res.status(400).json({ error: 'Path and new name are required' });
     }
-    
+
     const fullPath = path.join(BASE_PATH, itemPath);
     const dirName = path.dirname(fullPath);
     const newPath = path.join(dirName, newName);
-    
+
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH) || !newPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查源文件是否存在
     if (!await fs.pathExists(fullPath)) {
       return res.status(404).json({ error: 'Source path not found' });
     }
-    
+
     // 检查目标文件是否已存在
     if (await fs.pathExists(newPath)) {
       return res.status(409).json({ error: 'Destination already exists' });
     }
-    
+
     // 重命名
     await fs.move(fullPath, newPath);
-    res.json({ 
+    res.json({
       success: true,
       newPath: newPath.replace(BASE_PATH, '').replace(/\\/g, '/')
     });
@@ -224,31 +226,64 @@ router.put('/rename', async (req, res) => {
   }
 });
 
+// 生成唯一的文件名
+async function generateUniqueFileName(basePath, baseName, extension = '') {
+  // 确保扩展名以点开头
+  const ext = extension ? (extension.startsWith('.') ? extension : '.' + extension) : '';
+  const nameWithoutExt = baseName;
+  let counter = 1;
+  let newName = baseName + ext;
+
+  while (await fs.pathExists(path.join(basePath, newName))) {
+    newName = `${nameWithoutExt} (${counter})${ext}`;
+    counter++;
+  }
+
+  return newName;
+}
+
 // 复制文件或目录
 router.post('/copy', async (req, res) => {
   try {
     const { source, destination } = req.body;
-    
+
     if (!source || !destination) {
       return res.status(400).json({ error: 'Source and destination are required' });
     }
-    
+
     const sourcePath = path.join(BASE_PATH, source);
-    const destPath = path.join(BASE_PATH, destination);
-    
+    const destDir = path.dirname(path.join(BASE_PATH, destination));
+    const destName = path.basename(destination);
+
+    // 处理文件扩展名
+    let baseName = destName;
+    let extension = '';
+    const lastDotIndex = destName.lastIndexOf('.');
+    if (lastDotIndex !== -1) {
+      baseName = destName.slice(0, lastDotIndex);
+      extension = destName.slice(lastDotIndex + 1);
+    }
+
     // 安全检查
-    if (!sourcePath.startsWith(BASE_PATH) || !destPath.startsWith(BASE_PATH)) {
+    if (!sourcePath.startsWith(BASE_PATH) || !destDir.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查源文件是否存在
     if (!await fs.pathExists(sourcePath)) {
       return res.status(404).json({ error: 'Source path not found' });
     }
-    
+
+    // 生成唯一的文件名
+    const newName = await generateUniqueFileName(destDir, baseName, extension);
+    const destPath = path.join(destDir, newName);
+
     // 复制
-    await fs.copy(sourcePath, destPath, { overwrite: false });
-    res.json({ success: true });
+    await fs.copy(sourcePath, destPath);
+    res.json({
+      success: true,
+      newName: newName
+    });
   } catch (error) {
     console.error('Error copying item:', error);
     res.status(500).json({ error: 'Failed to copy item' });
@@ -259,24 +294,24 @@ router.post('/copy', async (req, res) => {
 router.post('/move', async (req, res) => {
   try {
     const { source, destination } = req.body;
-    
+
     if (!source || !destination) {
       return res.status(400).json({ error: 'Source and destination are required' });
     }
-    
+
     const sourcePath = path.join(BASE_PATH, source);
     const destPath = path.join(BASE_PATH, destination);
-    
+
     // 安全检查
     if (!sourcePath.startsWith(BASE_PATH) || !destPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查源文件是否存在
     if (!await fs.pathExists(sourcePath)) {
       return res.status(404).json({ error: 'Source path not found' });
     }
-    
+
     // 移动
     await fs.move(sourcePath, destPath, { overwrite: false });
     res.json({ success: true });
@@ -291,17 +326,17 @@ router.get('/info', async (req, res) => {
   try {
     const requestPath = req.query.path || '';
     const fullPath = path.join(BASE_PATH, requestPath);
-    
+
     // 安全检查
     if (!fullPath.startsWith(BASE_PATH)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     // 检查路径是否存在
     if (!await fs.pathExists(fullPath)) {
       return res.status(404).json({ error: 'Path not found' });
     }
-    
+
     const stats = await fs.stat(fullPath);
     const info = {
       name: path.basename(fullPath),
@@ -318,7 +353,7 @@ router.get('/info', async (req, res) => {
         executable: await fs.access(fullPath, fs.constants.X_OK).then(() => true).catch(() => false)
       }
     };
-    
+
     // 如果是目录，计算内容数量
     if (stats.isDirectory()) {
       try {
@@ -328,7 +363,7 @@ router.get('/info', async (req, res) => {
         info.itemCount = 0;
       }
     }
-    
+
     res.json(info);
   } catch (error) {
     console.error('Error getting item info:', error);
@@ -336,4 +371,4 @@ router.get('/info', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;
