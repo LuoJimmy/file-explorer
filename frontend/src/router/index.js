@@ -19,6 +19,14 @@ const routes = [
     }
   },
   {
+    path: '/components',
+    name: 'Components',
+    component: () => import('../views/ComponentsDemo.vue'),
+    meta: {
+      title: '组件展示'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue'),
@@ -40,4 +48,4 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
-export default router 
+export default router
