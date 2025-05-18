@@ -1,70 +1,27 @@
 <template>
-  <transition name="toast">
-    <div v-if="show" class="toast" :class="type">
-      {{ message }}
-    </div>
-  </transition>
+  <div
+    v-if="show"
+    class="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border bg-background p-4 shadow-lg"
+    :class="{
+      'border-destructive bg-destructive/10 text-destructive': type === 'error',
+      'border-warning bg-warning/10 text-warning': type === 'warning',
+      'border-success bg-success/10 text-success': type === 'success'
+    }"
+  >
+    <component
+      :is="type === 'error' ? RiErrorWarningLine : type === 'warning' ? RiAlertLine : RiCheckLine"
+      class="h-4 w-4"
+    />
+    <span>{{ message }}</span>
+  </div>
 </template>
 
-<script>
-export default {
-  name: 'Toast',
-  props: {
-    show: {
-      type: Boolean,
-      default: false
-    },
-    message: {
-      type: String,
-      default: ''
-    },
-    type: {
-      type: String,
-      default: 'info',
-      validator: (value) => ['success', 'error', 'info', 'warning'].includes(value)
-    }
-  }
-}
+<script setup lang="ts">
+import { RiErrorWarningLine, RiAlertLine, RiCheckLine } from '@remixicon/vue'
+
+defineProps<{
+  show: boolean
+  message: string
+  type: 'error' | 'warning' | 'success'
+}>()
 </script>
-
-<style scoped>
-.toast {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 10px 20px;
-  border-radius: 4px;
-  color: white;
-  font-size: 14px;
-  z-index: 2000;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.toast.success {
-  background-color: #67c23a;
-}
-
-.toast.error {
-  background-color: #f56c6c;
-}
-
-.toast.info {
-  background-color: #909399;
-}
-
-.toast.warning {
-  background-color: #e6a23c;
-}
-
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.3s ease;
-}
-
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -20px);
-}
-</style>
