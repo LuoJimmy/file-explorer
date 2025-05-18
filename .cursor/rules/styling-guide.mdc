@@ -1,0 +1,71 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 样式指南
+
+## Tailwind CSS 使用规范
+
+### 1. 类名组织
+- 按照功能分组
+- 使用空格分隔不同组
+- 保持类名顺序一致
+
+### 2. 常用类名组合
+```html
+<!-- 布局类 -->
+<div class="flex items-center justify-between p-4">
+  <!-- 内容 -->
+</div>
+
+<!-- 文本类 -->
+<p class="text-sm font-medium text-gray-900">
+  <!-- 文本内容 -->
+</p>
+
+<!-- 交互类 -->
+<button class="hover:bg-gray-100 active:bg-gray-200 transition-colors">
+  <!-- 按钮内容 -->
+</button>
+```
+
+### 3. 自定义样式
+- 使用 `@apply` 指令
+- 在 `tailwind.config.js` 中扩展主题
+- 使用 CSS 变量
+
+### 4. 响应式设计
+- 使用 Tailwind 的响应式前缀
+- 遵循移动优先原则
+- 合理使用断点
+
+### 5. 暗色模式
+- 使用 `dark:` 前缀
+- 提供完整的暗色主题支持
+- 保持颜色对比度
+
+### 6. 动画和过渡
+- 使用 Tailwind 的过渡类
+- 保持动画简洁
+- 考虑性能影响
+
+### 7. shadcn/ui 主题集成
+- 使用 shadcn/ui 的主题系统
+- 遵循设计系统规范
+- 保持视觉一致性
+- 支持主题切换
+
+### 8. Remix Icon 样式
+- 使用统一的图标尺寸
+- 保持图标颜色一致
+- 支持暗色模式适配
+- 注意图标间距
+
+### 9. 最佳实践
+- 避免过度使用自定义样式
+- 优先使用 Tailwind 的工具类
+- 保持样式一致性
+- 注意性能优化
+- 考虑可访问性
+- 支持响应式设计

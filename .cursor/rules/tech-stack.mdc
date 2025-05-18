@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 技术栈指南
+
+## 核心技术栈
+- Vue 3 - 前端框架
+- TypeScript - 开发语言
+- shadcn/ui - UI 组件库
+- Tailwind CSS - 样式框架
+- Remix Icon - 图标库
+
+## 开发工具
+- pnpm - 包管理器
+- Vite - 构建工具
+- ESLint - 代码检查
+- Prettier - 代码格式化
+- TypeScript - 类型检查
+
+## 技术栈使用规范
+
+### Vue 3
+- 使用 Composition API
+- 使用 `<script setup>` 语法
+- 使用 TypeScript 类型定义
+- 遵循 Vue 3 最佳实践
+
+### TypeScript
+- 严格模式
+- 类型定义完整
+- 避免使用 `any`
+- 使用类型推导
+
+### shadcn/ui
+- 基于 Radix UI 的组件
+- 可定制的设计系统
+- 支持暗色模式
+- 遵循组件使用规范
+
+### Tailwind CSS
+- 使用预设类名
+- 遵循响应式设计
+- 支持暗色模式
+- 使用自定义配置
+
+### Remix Icon
+- 使用官方推荐的引入方式
+- 保持图标风格统一
+- 合理使用图标尺寸
+- 注意图标可访问性
+
+## 开发环境配置
+```bash
+# 安装依赖
+pnpm install
+
+# 开发环境
+pnpm dev
+
+# 构建
+pnpm build
+
+# 代码检查
+pnpm lint
+
+# 类型检查
+pnpm type-check
+```
+
+## 最佳实践
+1. 代码组织
+   - 遵循项目目录结构
+   - 使用模块化开发
+   - 保持代码整洁
+
+2. 性能优化
+   - 使用路由懒加载
+   - 合理使用组件缓存
+   - 优化资源加载
+
+3. 开发流程
+   - 遵循 Git 工作流
+   - 代码审查
+   - 自动化测试

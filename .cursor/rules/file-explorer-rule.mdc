@@ -1,0 +1,8 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+该项目采用pnpm管理的多包项目，有前、后端2个包
+使用了pnpm作为包管理器
+该前端的技术栈是vue3 + ts + shadcn + tailwindcss + remix icon

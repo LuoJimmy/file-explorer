@@ -1,0 +1,78 @@
+---
+description:
+globs: *.tsx,frontend/src/components/**/*.vue
+alwaysApply: false
+---
+# 组件开发指南
+
+## 组件开发规范
+
+### 1. 文件结构
+每个组件应该包含以下文件：
+- `ComponentName.vue` - 组件主文件
+- `ComponentName.test.ts` - 单元测试文件
+- `ComponentName.stories.ts` - Storybook 故事文件（可选）
+
+### 2. 组件编写规范
+- 使用 `<script setup lang="ts">` 语法
+- 使用 TypeScript 类型定义
+- 使用 Composition API
+- 遵循 Vue 3 最佳实践
+
+### 3. Props 定义
+```typescript
+interface Props {
+  propName: {
+    type: PropType<Type>,
+    required: boolean,
+    default?: any
+  }
+}
+```
+
+### 4. 事件命名
+- 使用 `kebab-case` 命名事件
+- 事件名称应该具有描述性
+- 使用 `emit` 函数发送事件
+
+### 5. 样式规范
+- 使用 Tailwind CSS 类名
+- 遵循 BEM 命名规范
+- 使用 scoped 样式
+
+### 6. 组件文档
+组件demo规范：
+- 使用tsx语法
+- 组件渲染和组件代码复用同一份代码，使用Demo组件进行复用
+每个组件必须包含：
+- 组件描述
+- Props 说明
+- 事件说明
+- 插槽说明
+- 使用示例
+
+### 7. 测试要求
+- 编写单元测试
+- 测试覆盖率要求 > 80%
+- 包含基本功能测试
+- 包含边界条件测试
+
+### 8. shadcn/ui 集成
+- 使用 shadcn/ui 组件作为基础
+- 遵循 shadcn/ui 的设计规范
+- 保持组件风格统一
+- 支持主题定制
+
+### 9. 图标使用
+- 使用 Remix Icon
+- 保持图标风格统一
+- 合理使用图标尺寸
+- 注意图标可访问性
+
+### 10. 组件最佳实践
+- 保持组件职责单一
+- 合理使用组合式 API
+- 优化组件性能
+- 提供完整的类型定义
+- 支持国际化
+- 考虑可访问性

@@ -1,0 +1,55 @@
+---
+description:
+globs: frontend/src/router/*.ts
+alwaysApply: false
+---
+# 路由使用指南
+
+## 路由配置
+
+### 1. 路由结构
+- 使用 Vue Router 4.x
+- 采用 TypeScript 类型定义
+- 支持路由懒加载
+
+### 2. 路由命名规范
+- 使用 `kebab-case` 命名路由
+- 路由名称应该具有描述性
+- 遵循 RESTful 风格
+
+### 3. 路由配置示例
+```typescript
+const routes = [
+  {
+    path: '/components',
+    component: () => import('@/views/ComponentsDemo.vue'),
+    children: [
+      {
+        path: 'button',
+        component: () => import('@/components/Button.vue')
+      }
+    ]
+  }
+]
+```
+
+### 4. 路由导航
+- 使用 `useRouter` 和 `useRoute` 组合式 API
+- 使用 `router-link` 组件进行导航
+- 支持编程式导航
+
+### 5. 路由守卫
+- 全局前置守卫
+- 路由独享守卫
+- 组件内守卫
+
+### 6. 路由元信息
+- 使用 `meta` 字段存储路由元信息
+- 支持权限控制
+- 支持面包屑导航
+
+### 7. 路由最佳实践
+- 使用路由懒加载
+- 合理使用路由守卫
+- 保持路由结构清晰
+- 避免过深的路由嵌套
