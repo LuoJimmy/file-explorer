@@ -1,0 +1,68 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Run Prettier check
+      run: npm run format:check
+
+    - name: Run SonarQube Scanner
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      with:
+        args: >
+          -Dsonar.projectKey=file-explorer
+          -Dsonar.sources=src
+          -Dsonar.tests=tests
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          -Dsonar.testExecutionReportPaths=test-report.xml
+
+    - name: Run complexity analysis
+      run: |
+        npm install -g complexity-report
+        cr -o complexity-report.json src/
+        cr -f json -o complexity-report.json src/
+
+    - name: Upload quality reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: quality-reports
+        path: |
+          complexity-report.json
+          sonar-report.json
+        retention-days: 30
+
+    - name: Notify quality issues
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        SLACK_CHANNEL: code-quality
+        SLACK_COLOR: warning
+        SLACK_TITLE: Code Quality Check Failed
+        SLACK_MESSAGE: 'Code quality check failed in ${{ github.repository }}'
+        SLACK_FOOTER: ${{ github.repository }}
