@@ -1,6 +1,7 @@
 import type { FileInfo } from '../types'
 import type { UseFileStore } from '../stores/file'
 import axios from 'axios'
+import { ref } from 'vue'
 
 const api = axios.create({
   baseURL: '/api',
@@ -15,6 +16,9 @@ interface CreateLinkParams {
 }
 
 export function useFileOperations(fileStore: UseFileStore) {
+  const isOperating = ref(false)
+  const error = ref<string | null>(null)
+
   const createFolder = async (folderName: string): Promise<boolean> => {
     try {
       const response = await api.post('/folders', {
@@ -130,12 +134,89 @@ export function useFileOperations(fileStore: UseFileStore) {
     await fileStore.fetchFiles(fileStore.currentPath)
   }
 
+  // 复制文件
+  const copyFile = async (source: string, target: string) => {
+    try {
+      isOperating.value = true
+      error.value = null
+      await executeFileOperation({
+        type: FILE_OPERATIONS.COPY,
+        source,
+        target
+      })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '复制文件失败'
+      throw err
+    } finally {
+      isOperating.value = false
+    }
+  }
+
+  // 移动文件
+  const moveFile = async (source: string, target: string) => {
+    try {
+      isOperating.value = true
+      error.value = null
+      await executeFileOperation({
+        type: FILE_OPERATIONS.MOVE,
+        source,
+        target
+      })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '移动文件失败'
+      throw err
+    } finally {
+      isOperating.value = false
+    }
+  }
+
+  // 删除文件
+  const deleteFile = async (path: string) => {
+    try {
+      isOperating.value = true
+      error.value = null
+      await executeFileOperation({
+        type: FILE_OPERATIONS.DELETE,
+        source: path
+      })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '删除文件失败'
+      throw err
+    } finally {
+      isOperating.value = false
+    }
+  }
+
+  // 重命名文件
+  const renameFile = async (path: string, newName: string) => {
+    try {
+      isOperating.value = true
+      error.value = null
+      await executeFileOperation({
+        type: FILE_OPERATIONS.RENAME,
+        source: path,
+        newName
+      })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '重命名文件失败'
+      throw err
+    } finally {
+      isOperating.value = false
+    }
+  }
+
   return {
     createFolder,
     uploadFiles,
     deleteSelected,
     createLink,
     openFile,
-    refreshDirectory
+    refreshDirectory,
+    isOperating,
+    error,
+    copyFile,
+    moveFile,
+    deleteFile,
+    renameFile
   }
 }
