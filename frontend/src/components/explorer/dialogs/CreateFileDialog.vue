@@ -1,9 +1,9 @@
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center">
     <div class="fixed inset-0 bg-black/50" @click="$emit('close')" />
-    <div class="relative z-50 w-full max-w-md rounded-lg border bg-white p-6 shadow-lg dark:bg-gray-900">
+    <div class="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-medium text-gray-900 dark:text-white">新建文件夹</h2>
+        <h2 class="text-lg font-medium">新建文件</h2>
         <Button variant="ghost" size="icon" @click="$emit('close')">
           <i class="ri-close-line h-4 w-4" />
         </Button>
@@ -11,10 +11,10 @@
 
       <div class="space-y-4">
         <div class="space-y-2">
-          <Label>文件夹名称</Label>
+          <Label>文件名称</Label>
           <Input
-            v-model="folderName"
-            placeholder="输入文件夹名称"
+            v-model="fileName"
+            placeholder="输入文件名称"
             @keyup.enter="handleCreate"
           />
         </div>
@@ -28,7 +28,7 @@
           </Button>
           <Button
             @click="handleCreate"
-            :disabled="!folderName"
+            :disabled="!fileName"
           >
             创建
           </Button>
@@ -53,13 +53,13 @@ const emit = defineEmits<{
   (e: 'create', name: string): void
 }>()
 
-const folderName = ref('')
+const fileName = ref('')
 
 const handleCreate = () => {
-  if (!folderName.value) return
+  if (!fileName.value) return
 
-  emit('create', folderName.value)
-  folderName.value = ''
+  emit('create', fileName.value)
+  fileName.value = ''
   emit('close')
 }
 </script>

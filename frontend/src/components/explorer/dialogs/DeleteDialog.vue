@@ -3,7 +3,7 @@
     <div class="fixed inset-0 bg-black/50" @click="$emit('close')" />
     <div class="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-medium">重命名文件</h2>
+        <h2 class="text-lg font-medium">删除文件</h2>
         <Button variant="ghost" size="icon" @click="$emit('close')">
           <i class="ri-close-line h-4 w-4" />
         </Button>
@@ -30,15 +30,6 @@
           </div>
         </div>
 
-        <div class="space-y-2">
-          <Label>新名称</Label>
-          <Input
-            v-model="newName"
-            placeholder="输入新名称"
-            @keyup.enter="handleRename"
-          />
-        </div>
-
         <div class="flex justify-end gap-2">
           <Button
             variant="outline"
@@ -47,10 +38,10 @@
             取消
           </Button>
           <Button
-            @click="handleRename"
-            :disabled="!newName"
+            variant="destructive"
+            @click="handleDelete"
           >
-            重命名
+            删除
           </Button>
         </div>
       </div>
@@ -59,11 +50,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import Button from '../../ui/Button.vue'
-import Input from '../../ui/Input.vue'
 import Label from '../../ui/Label.vue'
-
 
 interface FileItem {
   name: string
@@ -72,23 +60,18 @@ interface FileItem {
   isSymbolicLink: boolean
 }
 
-const props = defineProps<{
+defineProps<{
   show: boolean
   file: FileItem
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'rename', name: string): void
+  (e: 'delete'): void
 }>()
 
-const newName = ref('')
-
-const handleRename = () => {
-  if (!newName.value) return
-
-  emit('rename', newName.value)
-  newName.value = ''
+const handleDelete = () => {
+  emit('delete')
   emit('close')
 }
 </script>

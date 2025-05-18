@@ -3,7 +3,7 @@
     <div class="fixed inset-0 bg-black/50" @click="handleClose" />
     <div class="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-medium">创建链接</h2>
+        <h2 class="text-lg font-medium">复制文件</h2>
         <Button v-if="canClose" variant="ghost" size="icon" @click="handleClose">
           <i class="ri-close-line h-4 w-4" />
         </Button>
@@ -55,4 +55,3 @@ const handleClose = () => {
   emit('close')
 }
 </script>
-

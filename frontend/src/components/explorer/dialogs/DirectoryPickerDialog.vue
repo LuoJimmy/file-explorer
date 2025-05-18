@@ -1,258 +1,137 @@
 <template>
-  <div v-if="show" class="dialog-overlay">
-    <div class="dialog directory-picker-dialog">
-      <div class="dialog-header">
-        <h3>选择目标目录</h3>
-        <button class="close-btn" @click="$emit('close')">×</button>
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black/50" @click="$emit('close')" />
+    <div class="relative z-50 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-medium">选择目录</h2>
+        <Button variant="ghost" size="icon" @click="$emit('close')">
+          <i class="ri-close-line h-4 w-4" />
+        </Button>
       </div>
 
-      <div class="directory-browser">
-        <div class="breadcrumbs">
-          <span
+      <div class="space-y-4">
+        <!-- 面包屑导航 -->
+        <div class="flex items-center gap-1 overflow-x-auto">
+          <button
             v-for="(crumb, index) in breadcrumbs"
-            :key="index"
-            class="breadcrumb-item"
-            @click="$emit('navigate', crumb.path)"
+            :key="crumb.path"
+            class="flex items-center gap-1 rounded-sm px-2 py-1 text-sm hover:bg-muted"
+            @click="handleNavigate(crumb.path)"
           >
-            {{ crumb.name }}
-            <span v-if="index < breadcrumbs.length - 1" class="separator">/</span>
-          </span>
+            <i
+              :class="[
+                index === 0 ? 'ri-home-line' : 'ri-folder-line',
+                'h-4 w-4 text-muted-foreground'
+              ]"
+            />
+            <span>{{ crumb.name }}</span>
+            <i
+              v-if="index < breadcrumbs.length - 1"
+              class="ri-arrow-right-s-line h-4 w-4 text-muted-foreground"
+            />
+          </button>
         </div>
 
-        <div class="directory-list">
-          <div v-if="loading" class="loading-message">
-            加载中...
+        <div class="space-y-2">
+          <Label>当前路径</Label>
+          <div class="flex gap-2">
+            <Input :value="localPath" @input="handleInput" @keyup.enter="handlePathChange" />
+            <Button @click="handlePathChange">
+              <i class="ri-arrow-right-line h-4 w-4" />
+            </Button>
           </div>
-
-          <template v-else>
-            <div
-              v-for="file in files.filter(f => f.isDirectory)"
-              :key="file.name"
-              class="directory-item"
-              @dblclick="$emit('navigate', currentPath ? `${currentPath}/${file.name}` : file.name)"
-            >
-              <span class="file-icon">📁</span>
-              <span class="dir-name">{{ file.name }}</span>
-            </div>
-
-            <div v-if="files.filter(f => f.isDirectory).length === 0" class="empty-message">
-              此目录中没有子目录
-            </div>
-          </template>
         </div>
-      </div>
 
-      <div class="dialog-footer">
-        <div class="current-path">
-          当前路径: {{ currentPath || '/' }}
+        <div class="h-64 overflow-y-auto rounded-md border">
+          <div v-if="loading" class="flex h-full items-center justify-center">
+            <i class="ri-loader-4-line h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+          <div
+            v-else
+            v-for="file in files"
+            :key="file.path"
+            class="flex cursor-pointer items-center gap-2 p-2 hover:bg-muted"
+            @click="handleItemClick(file)"
+          >
+            <i
+              :class="[
+                file.isDirectory ? 'ri-folder-line' : 'ri-file-line',
+                'h-4 w-4 text-muted-foreground'
+              ]"
+            />
+            <span>{{ file.name }}</span>
+          </div>
         </div>
-        <div class="dialog-buttons">
-          <button type="button" @click="$emit('navigate-up')" :disabled="!currentPath">上级目录</button>
-          <button type="button" @click="$emit('close')">取消</button>
-          <button type="button" @click="$emit('select', currentPath)">选择此目录</button>
+
+        <div class="flex justify-end gap-2">
+          <Button variant="outline" @click="$emit('close')">取消</Button>
+          <Button @click="handleSelect">选择</Button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'DirectoryPickerDialog',
-  props: {
-    show: {
-      type: Boolean,
-      default: false
-    },
-    currentPath: {
-      type: String,
-      default: ''
-    },
-    files: {
-      type: Array,
-      default: () => []
-    },
-    breadcrumbs: {
-      type: Array,
-      default: () => []
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    }
-  },
-  emits: ['close', 'navigate', 'navigate-up', 'select']
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import Button from '../../ui/Button.vue'
+import Input from '../../ui/Input.vue'
+import Label from '../../ui/Label.vue'
+
+interface FileItem {
+  name: string
+  path: string
+  isDirectory: boolean
+}
+
+interface Breadcrumb {
+  name: string
+  path: string
+}
+
+const props = defineProps<{
+  show: boolean
+  currentPath: string
+  files: FileItem[]
+  breadcrumbs: Breadcrumb[]
+  loading: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'select', path: string): void
+  (e: 'navigate', path: string): void
+  (e: 'navigate-up'): void
+}>()
+
+const localPath = ref(props.currentPath)
+
+// 监听 currentPath prop 的变化
+watch(() => props.currentPath, (newPath) => {
+  localPath.value = newPath
+})
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  localPath.value = target.value
+}
+
+const handlePathChange = () => {
+  emit('navigate', localPath.value)
+}
+
+const handleItemClick = (file: FileItem) => {
+  if (file.isDirectory) {
+    emit('navigate', file.path)
+  }
+}
+
+const handleNavigate = (path: string) => {
+  emit('navigate', path)
+}
+
+const handleSelect = () => {
+  emit('select', localPath.value)
+  emit('close')
 }
 </script>
-
-<style scoped>
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  z-index: 1001;
-  padding-top: 10vh;
-}
-
-.directory-picker-dialog {
-  width: 600px;
-  max-width: 90%;
-  display: flex;
-  flex-direction: column;
-  height: 450px;
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  padding: 20px;
-}
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.dialog-header h3 {
-  margin: 0;
-  color: var(--primary-color);
-  font-size: 1.2em;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  color: #999;
-}
-
-.close-btn:hover {
-  color: #666;
-}
-
-.directory-browser {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  margin-bottom: 15px;
-  background-color: #fff;
-}
-
-.breadcrumbs {
-  background-color: #f0f2f5;
-  padding: 10px 15px;
-  border-radius: 4px 4px 0 0;
-  white-space: nowrap;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.breadcrumb-item {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  color: var(--primary-color);
-}
-
-.breadcrumb-item:hover {
-  text-decoration: underline;
-}
-
-.separator {
-  margin: 0 5px;
-  color: #999;
-}
-
-.directory-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  background-color: #fff;
-}
-
-.directory-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.directory-item:hover {
-  background-color: #f5f7fa;
-}
-
-.dir-name {
-  margin-left: 8px;
-}
-
-.dialog-footer {
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color);
-}
-
-.current-path {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 10px;
-  word-break: break-all;
-  max-height: 40px;
-  overflow-y: auto;
-  padding: 5px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-}
-
-.dialog-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-button {
-  background-color: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 5px 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-button:hover {
-  background-color: #f5f7fa;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.empty-message {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  font-style: italic;
-}
-
-.loading-message {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-}
-</style>
