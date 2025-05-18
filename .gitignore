@@ -3,6 +3,8 @@ node_modules/
 npm-debug.log
 yarn-error.log
 yarn-debug.log
+.pnpm-debug.log
+.pnpm-store/
 
 # 构建输出
 dist/
@@ -24,10 +26,12 @@ build/
 # 系统文件
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # 日志文件
 logs/
 *.log
+pnpm-debug.log*
 
 # 数据库文件
 *.sqlite
@@ -37,4 +41,9 @@ logs/
 tmp/
 temp/
 files/
+
+# 依赖锁定文件
 **/package-lock.json
+
+# 测试覆盖率
+coverage/
