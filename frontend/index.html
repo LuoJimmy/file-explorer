@@ -2,13 +2,32 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Linux文件资源管理器</title>
-    <meta name="description" content="基于Docker的Linux文件资源管理器，支持硬链接和软链接功能" />
+    <meta name="description" content="一个现代化的文件浏览器应用" />
+    <meta name="theme-color" content="#ffffff" />
+    <!-- CSP 配置 -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self' 'unsafe-inline' 'unsafe-eval';
+               style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+               img-src 'self' data: https:;
+               font-src 'self' https://cdn.jsdelivr.net;
+               connect-src 'self' http://localhost:* https://api.*;"
+    />
+    <!-- XSS 防护 -->
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <!-- 点击劫持防护 -->
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <!-- MIME 类型嗅探防护 -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <!-- 引用策略 -->
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <title>文件浏览器</title>
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
-</html> 
+</html>
