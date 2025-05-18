@@ -1,20 +1,16 @@
 <template>
-  <div class="not-found">
-    <div class="content">
-      <div class="error-code">404</div>
-      <h1>页面未找到</h1>
-      <p>抱歉，您访问的页面不存在或已被移除。</p>
-      <router-link to="/" class="home-link">
-        返回首页
-      </router-link>
-    </div>
+  <div class="flex h-full flex-col items-center justify-center">
+    <h1 class="text-4xl font-bold">404</h1>
+    <p class="mt-4 text-lg">页面未找到</p>
+    <router-link to="/" class="mt-8 flex items-center text-primary hover:underline">
+      <RiHomeLine class="h-4 w-4" />
+      <span class="ml-2">返回首页</span>
+    </router-link>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'NotFound'
-}
+<script setup lang="ts">
+import { RiHomeLine } from '@remixicon/vue'
 </script>
 
 <style scoped>
@@ -64,4 +60,4 @@ p {
 .home-link:hover {
   background-color: #3aa876;
 }
-</style> 
+</style>
