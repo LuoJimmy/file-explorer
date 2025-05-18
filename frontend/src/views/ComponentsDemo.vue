@@ -1,79 +1,139 @@
-<script setup>
-import { ref } from 'vue'
-import Button from '../components/ui/Button.vue'
-import Input from '../components/ui/Input.vue'
-import Card from '../components/ui/Card.vue'
-import Navigation from '../components/ui/Navigation.vue'
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
-const navItems = [
-  { label: '首页', to: '/', icon: 'ri-home-line' },
-  { label: '文件', to: '/files', icon: 'ri-folder-line' },
-  { label: '设置', to: '/settings', icon: 'ri-settings-line' }
+// 组件分组
+const componentGroups = [
+  {
+    title: '基础组件',
+    items: [
+      { id: 'button', name: 'Button 按钮', path: '/components/button' },
+      { id: 'input', name: 'Input 输入框', path: '/components/input' },
+      { id: 'label', name: 'Label 标签', path: '/components/label' }
+    ]
+  },
+  {
+    title: '反馈组件',
+    items: [
+      { id: 'toast', name: 'Toast 提示', path: '/components/toast' },
+      { id: 'dialog', name: 'Dialog 对话框', path: '/components/dialog' }
+    ]
+  },
+  {
+    title: '导航组件',
+    items: [
+      { id: 'tabs', name: 'Tabs 标签页', path: '/components/tabs' },
+      { id: 'menu', name: 'Menu 菜单', path: '/components/menu' },
+      { id: 'navigation', name: 'Navigation 导航', path: '/components/navigation' }
+    ]
+  },
+  {
+    title: '数据录入',
+    items: [
+      { id: 'upload', name: 'Upload 上传', path: '/components/upload' },
+      { id: 'dropdown', name: 'Dropdown 下拉菜单', path: '/components/dropdown' }
+    ]
+  },
+  {
+    title: '展示组件',
+    items: [
+      { id: 'card', name: 'Card 卡片', path: '/components/card' },
+      { id: 'tooltip', name: 'Tooltip 文字提示', path: '/components/tooltip' }
+    ]
+  }
 ]
 
-const inputValue = ref('')
+const router = useRouter()
+const route = useRoute()
+
+// 当前激活的组件
+const activeComponent = computed(() => {
+  return route.path.split('/').pop() || ''
+})
+
+// 导航到指定组件
+const navigateToComponent = (path: string) => {
+  router.push(path)
+}
+
+// 获取面包屑导航
+const breadcrumbs = computed(() => {
+  const paths = route.path.split('/').filter(Boolean)
+  return paths.map((_, index) => {
+    const fullPath = '/' + paths.slice(0, index + 1).join('/')
+    const group = componentGroups.find((group) =>
+      group.items.some((item) => item.path === fullPath)
+    )
+    const item = group?.items.find((item) => item.path === fullPath)
+    return {
+      path: fullPath,
+      title: item?.name || '组件库'
+    }
+  })
+})
 </script>
 
 <template>
-  <div class="container mx-auto p-8">
-    <h1 class="text-3xl font-bold mb-8">组件展示</h1>
-
-    <!-- 按钮展示 -->
-    <section class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">按钮组件</h2>
-      <div class="flex flex-wrap gap-4">
-        <Button>默认按钮</Button>
-        <Button variant="destructive">危险按钮</Button>
-        <Button variant="outline">轮廓按钮</Button>
-        <Button variant="secondary">次要按钮</Button>
-        <Button variant="ghost">幽灵按钮</Button>
-        <Button variant="link">链接按钮</Button>
-      </div>
-    </section>
-
-    <!-- 输入框展示 -->
-    <section class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">输入框组件</h2>
-      <div class="max-w-md space-y-4">
-        <Input v-model="inputValue" placeholder="请输入内容" />
-        <Input type="password" placeholder="请输入密码" />
-        <Input disabled placeholder="禁用状态" />
-        <Input error placeholder="错误状态" />
-      </div>
-    </section>
-
-    <!-- 卡片展示 -->
-    <section class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">卡片组件</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <div class="p-6">
-            <h3 class="text-lg font-semibold mb-2">默认卡片</h3>
-            <p class="text-muted-foreground">这是一个默认样式的卡片组件示例。</p>
+  <div class="components-demo">
+    <!-- 左侧菜单 -->
+    <div
+      class="fixed left-0 top-0 h-screen w-64 border-r border-border bg-background p-4 overflow-y-auto"
+    >
+      <h2 class="text-lg font-semibold mb-4">组件导航</h2>
+      <div class="space-y-6">
+        <div v-for="group in componentGroups" :key="group.title" class="space-y-2">
+          <h3 class="text-sm font-medium text-muted-foreground">{{ group.title }}</h3>
+          <div class="space-y-1">
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              class="w-full text-left px-2 py-1 rounded-md text-sm transition-colors"
+              :class="[
+                activeComponent === item.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-hover'
+              ]"
+              @click="navigateToComponent(item.path)"
+            >
+              {{ item.name }}
+            </button>
           </div>
-        </Card>
-        <Card variant="bordered">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold mb-2">带边框卡片</h3>
-            <p class="text-muted-foreground">这是一个带边框样式的卡片组件示例。</p>
-          </div>
-        </Card>
-      </div>
-    </section>
-
-    <!-- 导航展示 -->
-    <section class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">导航组件</h2>
-      <div class="space-y-8">
-        <div>
-          <h3 class="text-lg font-medium mb-2">水平导航</h3>
-          <Navigation :items="navItems" />
-        </div>
-        <div>
-          <h3 class="text-lg font-medium mb-2">垂直导航</h3>
-          <Navigation :items="navItems" orientation="vertical" />
         </div>
       </div>
-    </section>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div class="ml-64 min-h-screen bg-background">
+      <!-- 面包屑导航 -->
+      <div class="sticky top-0 z-10 bg-background border-b border-border">
+        <div class="flex items-center space-x-2 p-6">
+          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
+            <span v-if="index > 0" class="text-muted-foreground">/</span>
+            <router-link
+              :to="crumb.path"
+              class="text-sm transition-colors hover:text-primary"
+              :class="[
+                index === breadcrumbs.length - 1
+                  ? 'text-foreground font-medium'
+                  : 'text-muted-foreground'
+              ]"
+            >
+              {{ crumb.title }}
+            </router-link>
+          </template>
+        </div>
+      </div>
+
+      <!-- 组件内容 -->
+      <div class="p-6 h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <router-view />
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.components-demo {
+  @apply min-h-screen bg-background;
+}
+</style>

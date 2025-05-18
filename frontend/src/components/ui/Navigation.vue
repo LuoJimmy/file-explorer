@@ -1,49 +1,42 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-const props = defineProps({
-  items: {
-    type: Array,
-    default: () => []
-  },
-  orientation: {
-    type: String,
-    default: 'horizontal',
-    validator: (value) => ['horizontal', 'vertical'].includes(value)
-  }
-})
+interface NavItem {
+  label: string
+  to: string
+  icon: any
+}
 
-const navClasses = computed(() => {
-  const baseClasses = 'flex items-center space-x-4'
-  return `${baseClasses} ${props.orientation === 'vertical' ? 'flex-col space-x-0 space-y-4' : ''}`
-})
+const props = defineProps<{
+  items: NavItem[]
+  orientation?: 'horizontal' | 'vertical'
+}>()
 
-const itemClasses = computed(() => {
-  return 'text-sm font-medium text-muted-foreground transition-colors hover:text-primary'
+const route = useRoute()
+
+const isActive = (path: string) => {
+  return route.path === path
+}
+
+const containerClass = computed(() => {
+  return props.orientation === 'vertical'
+    ? 'flex flex-col gap-1'
+    : 'flex items-center gap-1'
 })
 </script>
 
 <template>
-  <nav :class="navClasses">
-    <template v-for="(item, index) in items" :key="index">
-      <router-link
-        v-if="item.to"
-        :to="item.to"
-        :class="itemClasses"
-      >
-        <i v-if="item.icon" :class="item.icon" class="mr-2"></i>
-        {{ item.label }}
-      </router-link>
-      <a
-        v-else-if="item.href"
-        :href="item.href"
-        :class="itemClasses"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <i v-if="item.icon" :class="item.icon" class="mr-2"></i>
-        {{ item.label }}
-      </a>
-    </template>
+  <nav :class="containerClass">
+    <router-link
+      v-for="item in items"
+      :key="item.to"
+      :to="item.to"
+      class="flex items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-muted"
+      :class="{ 'bg-muted': isActive(item.to) }"
+    >
+      <component :is="item.icon" class="h-4 w-4" />
+      <span>{{ item.label }}</span>
+    </router-link>
   </nav>
 </template>

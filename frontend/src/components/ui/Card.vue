@@ -1,22 +1,23 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps({
-  variant: {
-    type: String,
-    default: 'default',
-    validator: (value) => ['default', 'bordered'].includes(value)
-  }
+interface Props {
+  variant?: 'default' | 'bordered'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'default'
 })
 
 const cardClasses = computed(() => {
-  const baseClasses = 'rounded-lg border bg-card text-card-foreground shadow-sm'
-  return `${baseClasses} ${props.variant === 'bordered' ? 'border-border' : ''}`
+  const baseClasses = 'rounded-lg bg-card text-card-foreground shadow-sm'
+  const variantClasses = props.variant === 'bordered' ? 'border' : ''
+  return `${baseClasses} ${variantClasses}`
 })
 </script>
 
 <template>
   <div :class="cardClasses">
-    <slot></slot>
+    <slot />
   </div>
 </template>
