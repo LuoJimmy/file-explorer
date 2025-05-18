@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "type-check": "vue-tsc --noEmit",
     "preview": "vite preview",
     "start": "vite preview",
     "clean": "rimraf dist && rimraf node_modules",
@@ -18,9 +19,7 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.6",
-    "@vitejs/plugin-vue": "^5.0.4",
-    "@vue/eslint-config-prettier": "^9.0.0",
+    "@types/node": "^20.5.7",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.22.0",
